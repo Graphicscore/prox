@@ -25,7 +25,7 @@
 <style>
   .row { padding: 0 var(--pad); margin: 18px 0; }
   h2 { font-size: 1.05rem; color: var(--text-hi); margin-bottom: 10px; }
-  .strip { display: flex; gap: var(--gap); overflow-x: auto; padding: 6px 4px 10px; scroll-padding: 0 var(--pad); }
+  .strip { display: flex; gap: var(--gap); overflow-x: auto; padding: 10px; scroll-padding: 0 var(--pad); }
   .skel { flex: 0 0 var(--poster-w); height: var(--poster-h); border-radius: var(--radius); background: var(--bg-3); }
   p { color: var(--muted); }
 </style>

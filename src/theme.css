@@ -1,7 +1,7 @@
 :root {
   --bg: #0e1016; --bg-2: #161a23; --bg-3: #1c212d; --bg-4: #262c3b;
   --text: #d5d9e3; --text-hi: #fff; --muted: #8d94a5;
-  --accent: #5b8cff; --good: #2f9d63; --bad: #d9534f;
+  --accent: #3a6bde; --good: #1c8450; --bad: #d9534f;
   --radius: 8px; --gap: 12px; --pad: 20px;
   --poster-w: 108px; --poster-h: 152px; --hero-h: 260px; --hero-poster-w: 104px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -15,6 +15,7 @@ html.tv {
   --poster-w: 190px; --poster-h: 266px; --hero-h: 380px; --hero-poster-w: 180px; --pad: 5vw;
   --ring: 5px solid var(--accent);
 }
+html { scroll-padding: 5rem 0 2rem; } /* keep the focused element clear of the sticky top bar */
 html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
 body { min-height: 100vh; }
 h1, h2, h3, p { margin: 0; }
