@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { api, describeError, type SearchHit } from "./api";
   import PosterGrid from "./ui/PosterGrid.svelte";
   let { onopen, onauth }: { onopen: (id: number) => void; onauth: () => void } = $props();
@@ -12,6 +13,7 @@
     } catch (x) { if (x === "NotLoggedIn") onauth(); else error = describeError(x); }
     busy = false;
   }
+  if (import.meta.env.DEV) onMount(() => { const d = new URLSearchParams(location.search).get("q"); if (d) { q = d; load(d, 1); } }); // dev demo hook
   function go(e: Event) { e.preventDefault(); load(q, 1); }
 </script>
 

@@ -27,6 +27,10 @@
     (async () => {
       try { const i = await api.info(cur); if (cur === id) info = i; } catch (x) { fail(x); return; }
       await loadPage(1);
+      if (import.meta.env.DEV) { // dev demo hook: ?pick=1 shows streams, ?play=1 opens the player
+        const d = new URLSearchParams(location.search);
+        if (d.get("play")) await watch(); else if (d.get("pick")) await pick(1, activeLang(episodes, lang));
+      }
     })();
   });
   async function pick(ep: number, l: string) {

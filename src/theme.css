@@ -28,6 +28,12 @@ button:disabled { opacity: 0.45; cursor: default; }
 input[type="text"], input:not([type]), input[type="password"], input[type="search"] {
   font: inherit; color: #111; background: #fff; border: 0; border-radius: var(--radius); padding: 0.5em 0.8em;
 }
+:root { scrollbar-width: thin; scrollbar-color: var(--bg-4) transparent; }
+* { scrollbar-width: thin; scrollbar-color: var(--bg-4) transparent; }
+::-webkit-scrollbar { height: 8px; width: 8px; background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg-4); border-radius: 4px; }
+html.tv, html.tv * { scrollbar-width: none; }
+html.tv ::-webkit-scrollbar { display: none; }
 :focus-visible { outline: var(--ring); outline-offset: 2px; }
 form label { display: block; margin: 0.5rem 0; }
 @media (pointer: coarse) {

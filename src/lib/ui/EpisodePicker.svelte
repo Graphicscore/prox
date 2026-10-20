@@ -45,7 +45,7 @@
   h2 { font-size: 1.05rem; color: var(--text-hi); margin-right: 6px; }
   h3 { font-size: 0.95rem; color: var(--text-hi); margin: 18px 0 8px; }
   .sep { width: 12px; }
-  .chip[aria-pressed="true"], .chip[aria-current="page"] { background: var(--bg-4); color: var(--text-hi); }
+  .chip[aria-pressed="true"], .chip[aria-current="page"] { background: var(--accent); color: #fff; }
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(4.2rem, 1fr)); gap: 8px; }
   .tile { border-radius: 6px; padding: 0.7em 0; }
   .tile[aria-pressed="true"] { background: var(--accent); }

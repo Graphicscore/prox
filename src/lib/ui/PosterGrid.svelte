@@ -9,5 +9,5 @@
 </div>
 
 <style>
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--poster-w), 1fr)); gap: var(--gap); justify-items: start; padding: 0 var(--pad); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, var(--poster-w)); justify-content: start; gap: var(--gap); padding: 0 var(--pad); }
 </style>
