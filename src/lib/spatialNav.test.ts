@@ -30,3 +30,10 @@ test("left and up pick the nearest aligned box", () => {
   assert.equal(pickNext(from, [box(0, 300), box(150, 300)], "left"), 1);
   assert.equal(pickNext(from, [box(300, 0), box(300, 150)], "up"), 1);
 });
+
+test("up from a tile on the right lands in the short chip row above, not the wide button row further up", () => {
+  const tile = box(800, 300, 80, 50);
+  const chips = [box(0, 230, 80, 40), box(100, 230, 80, 40), box(200, 230, 80, 40)];
+  const watch = box(700, 100, 150, 50); // horizontally aligned, but a row further away
+  assert.equal(pickNext(tile, [watch, ...chips], "up"), 3);
+});

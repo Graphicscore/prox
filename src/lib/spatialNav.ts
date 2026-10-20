@@ -5,19 +5,31 @@ const cx = (b: Box) => (b.left + b.right) / 2;
 const cy = (b: Box) => (b.top + b.bottom) / 2;
 
 /** Index of the best candidate in direction `dir` from `from`, or -1. A candidate must lie beyond the
- *  origin's center in that direction; score = gap along the axis + 2 x offset across it (lower wins). */
+ *  origin's center in that direction. Left/right: score = gap along the axis + 2 x offset across it (lower wins).
+ *  Up/down: the nearest row wins, then the smallest offset across. */
 export function pickNext(from: Box, cands: Box[], dir: Dir): number {
-  let best = -1, bestScore = Infinity;
+  const vertical = dir === "up" || dir === "down";
+  const scored: { i: number; along: number; across: number }[] = [];
   cands.forEach((c, i) => {
     let along: number, across: number;
     if (dir === "right") { if (cx(c) <= cx(from)) return; along = Math.max(0, c.left - from.right); across = Math.abs(cy(c) - cy(from)); }
     else if (dir === "left") { if (cx(c) >= cx(from)) return; along = Math.max(0, from.left - c.right); across = Math.abs(cy(c) - cy(from)); }
     else if (dir === "down") { if (cy(c) <= cy(from)) return; along = Math.max(0, c.top - from.bottom); across = Math.abs(cx(c) - cx(from)); }
     else { if (cy(c) >= cy(from)) return; along = Math.max(0, from.top - c.bottom); across = Math.abs(cx(c) - cx(from)); }
-    const score = along + 2 * across;
-    if (score < bestScore) { bestScore = score; best = i; }
+    scored.push({ i, along, across });
   });
-  return best;
+  if (!scored.length) return -1;
+  let pool = scored;
+  if (vertical) { // nearest row first (a short chip row must not be skipped for a wide row further away), then closest across
+    const min = Math.min(...scored.map((s) => s.along)), tol = (from.bottom - from.top) / 2;
+    pool = scored.filter((s) => s.along <= min + tol);
+  }
+  let best = pool[0];
+  for (const s of pool) {
+    const score = vertical ? s.across : s.along + 2 * s.across;
+    if (score < (vertical ? best.across : best.along + 2 * best.across)) best = s;
+  }
+  return best.i;
 }
 
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
@@ -29,7 +41,7 @@ const visible = (e: HTMLElement) => { const r = e.getBoundingClientRect(); retur
 export function moveFocus(dir: Dir, root: ParentNode = document): boolean {
   const cur = document.activeElement as HTMLElement | null;
   const all = [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(visible);
-  if (!cur || cur === document.body) { all[0]?.focus(); all[0]?.scrollIntoView({ block: "nearest" }); return all.length > 0; }
+  if (!cur || cur === document.body) { all[0]?.focus(); all[0]?.scrollIntoView({ block: "nearest", inline: "nearest" }); return all.length > 0; }
   const els = all.filter((e) => e !== cur);
   const i = pickNext(boxOf(cur), els.map(boxOf), dir);
   if (i < 0) return false;
