@@ -150,9 +150,9 @@ pub fn is_allowed_embed_url(url: &str) -> bool {
         && u.host_str().is_some_and(|h| h.ends_with(".proxer.me") && !h.starts_with('.'))
 }
 
-/// Embed fetches never follow redirects, so a 3xx is an error, not a page.
+/// Embed fetches never follow redirects, so 3xx/4xx/5xx are errors, not a page.
 fn check_embed_status(s: reqwest::StatusCode) -> Result<(), Error> {
-    if s.is_redirection() || s.is_server_error() || s.as_u16() == 429 {
+    if s.is_redirection() || s.is_client_error() || s.is_server_error() || s.as_u16() == 429 {
         Err(Error::Http(s.as_u16()))
     } else {
         Ok(())
@@ -166,10 +166,8 @@ mod tests {
 
     #[test]
     fn embed_status() {
-        for c in [200u16, 404] {
-            assert!(check_embed_status(StatusCode::from_u16(c).unwrap()).is_ok(), "{c}");
-        }
-        for c in [301u16, 302, 307, 429, 503] {
+        assert!(check_embed_status(StatusCode::OK).is_ok());
+        for c in [301u16, 302, 307, 403, 404, 410, 429, 503] {
             assert!(matches!(check_embed_status(StatusCode::from_u16(c).unwrap()), Err(Error::Http(x)) if x == c), "{c}");
         }
     }

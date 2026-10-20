@@ -13,8 +13,8 @@ export const streamLabel = (s: Stream) => (s.type === "proxer-stream" ? "Normal"
 /** Embed URL from untrusted page data; mirrors the Rust is_allowed_embed_url rules. */
 export function safeEmbedUrl(s: Stream): string | null {
   try {
-    const u = new URL(s.replace.replace("#", s.code));
-    const ok = u.protocol === "https:" && !u.username && !u.password && !u.port && u.hostname.endsWith(".proxer.me");
+    const u = new URL(s.replace.replaceAll("#", s.code));
+    const ok = u.protocol === "https:" && !u.username && !u.password && !u.port && u.hostname.endsWith(".proxer.me") && !u.hostname.startsWith(".");
     return ok ? u.href : null;
   } catch { return null; }
 }
