@@ -2,8 +2,8 @@
   import Loading from "./Loading.svelte";
   import { streamLabel, type Episode, type PageLink, type Stream } from "../api";
   import { activeLang, episodesWith, languagesOf, pageWindow, streamThumb } from "./helpers";
-  let { episodes, pages, epPage, selected, streams, loadingPage = 0, loadingStreams = false, onpage, onpick, onplay, onreminder, lang = $bindable("") }: {
-    episodes: Episode[]; pages: PageLink[]; epPage: number; loadingPage?: number; loadingStreams?: boolean; selected: { ep: number; lang: string } | null; streams: Stream[];
+  let { episodes, pages, epPage, selected, streams, watchedUpTo = 0, loadingPage = 0, loadingStreams = false, onpage, onpick, onplay, onreminder, lang = $bindable("") }: {
+    episodes: Episode[]; pages: PageLink[]; epPage: number; watchedUpTo?: number; loadingPage?: number; loadingStreams?: boolean; selected: { ep: number; lang: string } | null; streams: Stream[];
     onpage: (p: number) => void; onpick: (ep: number, lang: string) => void; onplay: (s: Stream) => void; onreminder: (which: "this" | "next") => void; lang?: string;
   } = $props();
   const langs = $derived(languagesOf(episodes));
@@ -28,7 +28,7 @@
   {#if loadingPage}<Loading compact label="Loading episodes…" />{/if}
   <div class="tiles" class:busy={loadingPage}>
     {#each nums as n (n)}
-      <button class="tile" aria-pressed={selected?.ep === n && selected?.lang === active} onclick={() => onpick(n, active)}>{n}</button>
+      <button class="tile" class:watched={n <= watchedUpTo} aria-pressed={selected?.ep === n && selected?.lang === active} onclick={() => onpick(n, active)}>{n}</button>
     {:else}<p class="muted">No episodes</p>{/each}
   </div>
   {#if selected}
@@ -58,6 +58,7 @@
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(4.2rem, 1fr)); gap: 8px; }
   .tile { border-radius: 6px; padding: 0.7em 0; }
   .tile[aria-pressed="true"] { background: var(--accent); }
+  .tile.watched { box-shadow: inset 0 -4px 0 var(--good); } /* already watched (list progress) */
   .streams { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .badge { font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; margin-left: 6px; background: var(--bg-4); }
   .badge.normal { background: var(--accent); }
