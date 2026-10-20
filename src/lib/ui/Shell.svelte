@@ -15,7 +15,9 @@
   <button class="ghost icon" class:spin={updating} onclick={onupdate} title="Check for updates" aria-label="Check for updates">
     <svg viewBox="0 0 24 24" width="1.2em" height="1.2em" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4"/></svg>
   </button>
-  <button class="ghost" onclick={onlogout}>Log out</button>
+  <button class="ghost icon" onclick={onlogout} title="Log out" aria-label="Log out">
+    <svg viewBox="0 0 24 24" width="1.2em" height="1.2em" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M16 17l5-5-5-5M21 12H9"/></svg>
+  </button>
 </header>
 <main>{@render children?.()}</main>
 {#if version}<footer class="foot">{version}</footer>{/if}
@@ -29,6 +31,7 @@
   main { padding-bottom: 40px; }
   .ver { color: var(--muted); font-size: 0.75rem; white-space: nowrap; }
   @media (max-width: 600px) { .ver { display: none; } } /* phones: only the footer line */
+  @media (max-width: 480px) { .logo { display: none; } .top { gap: 4px; } .tab { margin-right: 2px; } } /* Log out must fit */
   .foot { padding: 0 var(--pad) 24px; color: var(--muted); font-size: 0.75rem; text-align: center; }
   .icon { display: inline-flex; align-items: center; padding: 0.45em 0.6em; }
   .spin svg { animation: spin 1s linear infinite; }
