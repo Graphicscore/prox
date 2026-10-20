@@ -2,14 +2,27 @@
   import { onMount } from "svelte";
   import { api } from "./lib/api";
   import Login from "./lib/Login.svelte";
+  import Home from "./lib/Home.svelte";
   import Search from "./lib/Search.svelte";
   import Info from "./lib/Info.svelte";
+  import Shell from "./lib/ui/Shell.svelte";
   import { exit, onBackButtonPress } from "@tauri-apps/api/app";
   import { currentTv } from "./lib/tv";
   import { handleBack } from "./lib/back";
   import { installDpad } from "./lib/dpad";
   import { installTvInputs } from "./lib/tvInput";
-  let screen = $state<"boot" | "login" | "search" | "info">("boot"), id = $state(0), warning = $state("");
+  type Screen = "boot" | "login" | "home" | "search" | "info";
+  let screen = $state<Screen>("boot"), from = $state<"home" | "search">("home"), id = $state(0), warning = $state("");
+  const startScreen = (): Screen => {
+    if (import.meta.env.DEV) { // dev only: ?screen=home|search|title&id=N for screenshots in the demo mode
+      const q = new URLSearchParams(location.search);
+      const s = q.get("screen");
+      if (q.get("id")) id = Number(q.get("id"));
+      if (s === "search") return "search";
+      if (s === "title") return "info";
+    }
+    return "home";
+  };
   onMount(() => {
     document.documentElement.classList.toggle("tv", currentTv());
     const offDpad = installDpad();
@@ -19,20 +32,29 @@
     onBackButtonPress(() => { if (!handleBack()) exit(0).catch(() => {}); })
       .then((l) => { if (gone) void l.unregister(); else offBack = () => void l.unregister(); })
       .catch(() => {});
-    (async () => { screen = (await api.autoLogin().catch(() => false)) ? "search" : "login"; })();
+    (async () => { screen = (await api.autoLogin().catch(() => false)) ? startScreen() : "login"; })();
     return () => { gone = true; offDpad(); offInputs(); offBack?.(); };
   });
   async function logout() { await api.logout(); warning = ""; screen = "login"; }
+  const open = (i: number) => { from = screen === "search" ? "search" : "home"; id = i; screen = "info"; };
+  const auth = () => (screen = "login");
 </script>
 
 {#if screen === "login"}
-  <Login onok={(w) => { warning = w ?? ""; screen = "search"; }} />
+  <Login onok={(w) => { warning = w ?? ""; screen = "home"; }} />
 {:else if screen !== "boot"}
-  <nav><button onclick={() => (screen = "search")}>Search</button> <button onclick={logout}>Log out</button></nav>
-  {#if warning}<p role="status">{warning}</p>{/if}
-  {#if screen === "search"}
-    <Search onopen={(i) => { id = i; screen = "info"; }} onauth={() => (screen = "login")} />
-  {:else}
-    <Info {id} onback={() => (screen = "search")} onauth={() => (screen = "login")} />
-  {/if}
+  <Shell tab={screen === "info" ? null : screen} onnav={(t) => (screen = t)} onlogout={logout}>
+    {#if warning}<p role="status" class="warn">{warning}</p>{/if}
+    {#if screen === "home"}
+      <Home onopen={open} onauth={auth} />
+    {:else if screen === "search"}
+      <Search onopen={open} onauth={auth} />
+    {:else}
+      <Info {id} onback={() => (screen = from)} onauth={auth} />
+    {/if}
+  </Shell>
 {/if}
+
+<style>
+  .warn { padding: 8px var(--pad); color: var(--muted); }
+</style>
