@@ -37,15 +37,31 @@ impl FileStore {
 }
 
 impl CredStore for FileStore {
+    /// Rejects a username containing '\n' (it would corrupt the `user\npass` format).
     fn save(&self, user: &str, pass: &str) -> Result<(), String> {
-        if let Some(dir) = self.path.parent() {
-            std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+        if user.contains('\n') {
+            return Err("username must not contain a newline".into());
         }
-        std::fs::write(&self.path, format!("{user}\n{pass}")).map_err(|e| e.to_string())?;
+        use std::io::Write;
+        let dir = self.path.parent().ok_or("no parent dir")?;
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+        // Temp file in the same dir, created 0600 from the start, then renamed over the target (atomic).
+        let tmp = self.path.with_extension("tmp");
+        let _ = std::fs::remove_file(&tmp);
+        let mut opts = std::fs::OpenOptions::new();
+        opts.write(true).create_new(true);
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&self.path, std::fs::Permissions::from_mode(0o600)).map_err(|e| e.to_string())?;
+            use std::os::unix::fs::OpenOptionsExt;
+            opts.mode(0o600);
+        }
+        let res = opts
+            .open(&tmp)
+            .and_then(|mut f| f.write_all(format!("{user}\n{pass}").as_bytes()).and_then(|_| f.sync_all()))
+            .and_then(|_| std::fs::rename(&tmp, &self.path));
+        if let Err(e) = res {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(e.to_string());
         }
         Ok(())
     }
@@ -55,6 +71,7 @@ impl CredStore for FileStore {
         Some((u.into(), p.into()))
     }
     fn clear(&self) {
+        // Errors ignored on purpose: the trait returns (), and a missing file is the normal case.
         let _ = std::fs::remove_file(&self.path);
     }
 }
@@ -111,6 +128,49 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("credentials"), "no newline here").unwrap();
         assert!(FileStore::new(&dir).load().is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn file_store_empty_password() {
+        let dir = temp_dir("empty");
+        let s = FileStore::new(&dir);
+        s.save("u", "").unwrap();
+        assert_eq!(s.load(), Some(("u".into(), "".into())));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn file_store_rejects_newline_username() {
+        let dir = temp_dir("nl");
+        let s = FileStore::new(&dir);
+        assert!(s.save("a\nb", "p").is_err());
+        assert!(!dir.join("credentials").exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn file_store_tightens_existing_loose_file() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = temp_dir("loose");
+        std::fs::create_dir_all(&dir).unwrap();
+        let f = dir.join("credentials");
+        std::fs::write(&f, "old\nold").unwrap();
+        std::fs::set_permissions(&f, std::fs::Permissions::from_mode(0o644)).unwrap();
+        FileStore::new(&dir).save("u", "p").unwrap();
+        assert_eq!(std::fs::metadata(&f).unwrap().permissions().mode() & 0o777, 0o600);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn file_store_leaves_no_temp_file() {
+        let dir = temp_dir("tmp");
+        let s = FileStore::new(&dir);
+        s.save("u", "p").unwrap();
+        s.save("u", "p2").unwrap();
+        let names: Vec<_> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name()).collect();
+        assert_eq!(names, vec![std::ffi::OsString::from("credentials")]);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
