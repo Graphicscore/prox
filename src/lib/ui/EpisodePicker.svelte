@@ -1,6 +1,6 @@
 <script lang="ts">
   import { streamLabel, type Episode, type PageLink, type Stream } from "../api";
-  import { activeLang, episodesWith, languagesOf, pageWindow } from "./helpers";
+  import { activeLang, episodesWith, languagesOf, pageWindow, streamThumb } from "./helpers";
   let { episodes, pages, epPage, selected, streams, onpage, onpick, onplay, onreminder, lang = $bindable("") }: {
     episodes: Episode[]; pages: PageLink[]; epPage: number; selected: { ep: number; lang: string } | null; streams: Stream[];
     onpage: (p: number) => void; onpick: (ep: number, lang: string) => void; onplay: (s: Stream) => void; onreminder: (which: "this" | "next") => void; lang?: string;
@@ -31,6 +31,8 @@
   </div>
   {#if selected}
     <h3>Streams for episode {selected.ep} ({selected.lang})</h3>
+    {@const thumb = streams.map(streamThumb).find(Boolean)}
+    {#if thumb}<img class="thumb" src={thumb} alt="Episode {selected.ep} preview" />{/if}
     <div class="streams">
       {#each streams as s}
         {@const label = streamLabel(s)}
@@ -58,5 +60,6 @@
   .badge { font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; margin-left: 6px; background: var(--bg-4); }
   .badge.normal { background: var(--accent); }
   .badge.airing { background: var(--good); }
+  .thumb { display: block; width: min(16rem, 100%); aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius); background: var(--bg-3); margin-bottom: 10px; }
   .muted { color: var(--muted); }
 </style>
