@@ -10,7 +10,7 @@ One-time setup for building the Android app. Every command is a single line; pas
 | 2 | `rustup default stable` | - | Installs the stable toolchain under rustup. |
 | 3 | `rustup target add aarch64-linux-android x86_64-linux-android i686-linux-android` | - | Rust std for the Android ABIs (arm64 devices, x86_64 and x86 emulators). |
 | 4 | `JAVA_HOME=/usr/lib/jvm/java-21-openjdk ~/Android/Sdk/cmdline-tools/latest/bin/sdkmanager --licenses` | interactive (answer `y`) | The SDK refuses to install packages until licenses are accepted; JDK 21 because sdkmanager breaks on the default JDK 27. |
-| 5 | `JAVA_HOME=/usr/lib/jvm/java-21-openjdk ~/Android/Sdk/cmdline-tools/latest/bin/sdkmanager "ndk;30.0.16248370"` | - | The NDK provides the clang linker Rust needs for Android targets (newest stable listed by `sdkmanager --list` on 2026-10-20). |
+| 5 | `JAVA_HOME=/usr/lib/jvm/java-21-openjdk ~/Android/Sdk/cmdline-tools/latest/bin/sdkmanager "ndk;28.2.13676358"` | - | The NDK provides the clang linker Rust needs for Android targets (NDK 28.2 chosen conservatively; 29.x and 30.x also exist but are newer than most Tauri/Rust setups are tested with). |
 
 ## Use
 
