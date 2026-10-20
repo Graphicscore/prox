@@ -21,6 +21,44 @@ impl CredStore for KeyringStore {
     }
 }
 
+/// App-private credential file for Android, where the `keyring` crate has no backend.
+/// ponytail: plain text in the app's private directory (only this app can read it on a non-rooted device);
+/// upgrade to the Android Keystore (Kotlin plugin) if the threat model needs it.
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub struct FileStore {
+    path: std::path::PathBuf,
+}
+
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+impl FileStore {
+    pub fn new(dir: &std::path::Path) -> Self {
+        Self { path: dir.join("credentials") }
+    }
+}
+
+impl CredStore for FileStore {
+    fn save(&self, user: &str, pass: &str) -> Result<(), String> {
+        if let Some(dir) = self.path.parent() {
+            std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+        }
+        std::fs::write(&self.path, format!("{user}\n{pass}")).map_err(|e| e.to_string())?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&self.path, std::fs::Permissions::from_mode(0o600)).map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
+    fn load(&self) -> Option<(String, String)> {
+        let s = std::fs::read_to_string(&self.path).ok()?;
+        let (u, p) = s.split_once('\n')?;
+        Some((u.into(), p.into()))
+    }
+    fn clear(&self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
 #[cfg(test)]
 pub struct MemStore(pub std::sync::Mutex<Option<(String, String)>>);
 #[cfg(test)]
@@ -41,5 +79,38 @@ mod tests {
         assert_eq!(s.load(), Some(("u".into(), "p".into())));
         s.clear();
         assert!(s.load().is_none());
+    }
+
+    fn temp_dir(tag: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!("proxer-creds-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        d
+    }
+
+    #[test]
+    fn file_store_round_trip_and_mode() {
+        let dir = temp_dir("rt");
+        let s = FileStore::new(&dir);
+        assert!(s.load().is_none());
+        s.save("user", "pa\nss").unwrap();
+        assert_eq!(s.load(), Some(("user".into(), "pa\nss".into())));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(dir.join("credentials")).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600);
+        }
+        s.clear();
+        assert!(s.load().is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn file_store_malformed_file_is_none() {
+        let dir = temp_dir("bad");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("credentials"), "no newline here").unwrap();
+        assert!(FileStore::new(&dir).load().is_none());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
