@@ -5,7 +5,7 @@
   import Player from "./Player.svelte";
   import Hero from "./ui/Hero.svelte";
   import EpisodePicker from "./ui/EpisodePicker.svelte";
-  import { languagesOf } from "./ui/helpers";
+  import { activeLang, episodesWith } from "./ui/helpers";
   let { id, onback, onauth }: { id: number; onback: () => void; onauth: () => void } = $props();
   let info = $state<Info | null>(null), episodes = $state<Episode[]>([]), pages = $state<PageLink[]>([]);
   let epPage = $state(1), streams = $state<Stream[]>([]), lang = $state(""), playing = $state<Stream | null>(null);
@@ -39,10 +39,10 @@
   }
   /** Play the first supported stream of the first episode in the chosen (or first available) language. */
   async function watch() {
-    const l = lang || languagesOf(episodes)[0];
-    const first = episodes.find((e) => e.langs.includes(l));
-    if (!first) return;
-    await pick(first.number, l);
+    const l = activeLang(episodes, lang);
+    const first = episodesWith(episodes, l)[0];
+    if (first === undefined) return;
+    await pick(first, l);
     const s = streams.find((x) => streamLabel(x) !== "Unsupported");
     if (s) playing = s;
   }

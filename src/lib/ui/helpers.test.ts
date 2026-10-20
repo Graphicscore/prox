@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { coverUrl, episodesWith, languagesOf } from "./helpers.ts";
+import { activeLang, coverUrl, episodesWith, languagesOf } from "./helpers.ts";
 
 const eps = [
   { number: 2, langs: ["gersub", "engsub"] },
@@ -21,4 +21,11 @@ test("episodesWith lists episode numbers for a language, ascending", () => {
   assert.deepEqual(episodesWith(eps, "engsub"), [1, 2, 3]);
   assert.deepEqual(episodesWith(eps, "engdub"), [1]);
   assert.deepEqual(episodesWith(eps, "none"), []);
+});
+
+test("activeLang keeps a known language, else falls back to the first", () => {
+  assert.equal(activeLang(eps, "gersub"), "gersub");
+  assert.equal(activeLang(eps, "gerdub"), "engsub");
+  assert.equal(activeLang(eps, ""), "engsub");
+  assert.equal(activeLang([], "gerdub"), "");
 });

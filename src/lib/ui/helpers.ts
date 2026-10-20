@@ -14,3 +14,9 @@ export function languagesOf(episodes: Episode[]): string[] {
 export function episodesWith(episodes: Episode[], lang: string): number[] {
   return episodes.filter((e) => e.langs.includes(lang)).map((e) => e.number).sort((a, b) => a - b);
 }
+
+/** The language the picker shows: the chosen one if present, else the first available. */
+export function activeLang(episodes: Episode[], lang: string): string {
+  const langs = languagesOf(episodes);
+  return langs.includes(lang) ? lang : (langs[0] ?? "");
+}

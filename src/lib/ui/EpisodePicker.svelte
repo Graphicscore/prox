@@ -1,12 +1,12 @@
 <script lang="ts">
   import { streamLabel, type Episode, type PageLink, type Stream } from "../api";
-  import { episodesWith, languagesOf } from "./helpers";
+  import { activeLang, episodesWith, languagesOf } from "./helpers";
   let { episodes, pages, epPage, selected, streams, onpage, onpick, onplay, lang = $bindable("") }: {
     episodes: Episode[]; pages: PageLink[]; epPage: number; selected: { ep: number; lang: string } | null; streams: Stream[];
     onpage: (p: number) => void; onpick: (ep: number, lang: string) => void; onplay: (s: Stream) => void; lang?: string;
   } = $props();
   const langs = $derived(languagesOf(episodes));
-  const active = $derived(langs.includes(lang) ? lang : (langs[0] ?? ""));
+  const active = $derived(activeLang(episodes, lang));
   const nums = $derived(episodesWith(episodes, active));
 </script>
 
@@ -19,7 +19,7 @@
     {#if pages.length > 1}
       <span class="sep"></span>
       {#each pages as p (p.page)}
-        <button class="chip" aria-current={p.page === epPage ? "page" : undefined} disabled={p.page === epPage} onclick={() => onpage(p.page)}>{p.label}</button>
+        <button class="chip" aria-current={p.page === epPage ? "page" : undefined} onclick={() => p.page !== epPage && onpage(p.page)}>{p.label}</button>
       {/each}
     {/if}
   </div>
