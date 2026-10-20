@@ -1,4 +1,4 @@
-import type { Api, Episode, Info, ListKind, SearchHit, SearchPage, Stream } from "./api";
+import type { Api, Episode, Info, ListEntry, ListKind, SearchHit, SearchPage, Stream } from "./api";
 
 // A factory so the fake data is not top-level side effects: Rollup can then drop it from production builds.
 export function makeDemoApi(): Api {
@@ -11,6 +11,12 @@ export function makeDemoApi(): Api {
   ];
   const rotate = (n: number) => [...HITS.slice(n), ...HITS.slice(0, n)];
   const lists: Record<ListKind, SearchHit[]> = { airing: rotate(0), rating: rotate(3), clicks: [] };
+
+  const mine: ListEntry[] = [
+    { id: 59782, cid: 1, name: "Tensei shitara Ken deshita 2", episode: 3, episodes: 12, state: 1, timestamp: 300, medium: "animeseries" },
+    { id: 1874, cid: 2, name: "Steins;Gate", episode: 0, episodes: 24, state: 2, timestamp: 200, medium: "animeseries" },
+    { id: 45, cid: 3, name: "Naruto", episode: 220, episodes: 220, state: 0, timestamp: 100, medium: "animeseries" },
+  ];
 
   const epis = (n: number): Episode[] => Array.from({ length: n }, (_, i) => ({ number: i + 1, langs: i % 7 === 6 ? ["engsub"] : ["engsub", "engdub", "gersub", "gerdub"] }));
   const stream = (type: string, name: string): Stream => ({ code: "demo", type, name, replace: "https://stream.proxer.me/embed-#-728x504.html" });
@@ -31,5 +37,13 @@ export function makeDemoApi(): Api {
     }),
     streams: async () => [stream("proxer-stream", "Proxer-Stream"), stream("ps-test", "Proxer-Stream Airing")],
     resolve: async () => { throw "Network"; },
+    myList: async () => mine.map((e) => ({ ...e })),
+    titleAction: async (_id: number, action: "note" | "favor" | "finish") =>
+      ({ note: "Der Eintrag wurde vermerkt.", favor: "Der Eintrag wurde favorisiert.", finish: "Der Eintrag wurde als abgeschlossen markiert." })[action],
+    reminder: async (_id: number, ep: number, _lang: string, which: "this" | "next") => `Lesezeichen für Episode ${which === "next" ? ep + 1 : ep} gesetzt.`,
+    markWatched: async (id: number, ep: number) => {
+      const e = mine.find((x) => x.id === id);
+      if (e) { e.episode = Math.max(e.episode, ep); if (e.state === 2) e.state = 1; }
+    },
   };
 }

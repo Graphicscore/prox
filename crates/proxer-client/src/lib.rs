@@ -108,6 +108,15 @@ impl Client {
         Ok(res.text().await.map_err(|e| e.without_url())?)
     }
 
+    /// POST a form to one of Proxer's JSON write endpoints. The URL carries the session token, so errors are
+    /// stripped of it. No re-login here: callers GET the token page first (which re-logs in if needed).
+    pub async fn post(&self, path: &str, form: &[(&str, &str)]) -> Result<String, Error> {
+        let _p = self.gate.acquire().await.expect("semaphore");
+        let res = self.http().post(format!("{}{}", self.base, path)).form(form).send().await.map_err(|e| e.without_url())?;
+        check_status(res.status())?;
+        Ok(res.text().await.map_err(|e| e.without_url())?)
+    }
+
     /// GET a page; if it comes back logged out, log in again once and retry once.
     pub async fn get(&self, path: &str) -> Result<String, Error> {
         let body = self.fetch(path).await?;

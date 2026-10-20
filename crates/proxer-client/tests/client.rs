@@ -1,5 +1,5 @@
 use proxer_client::{Client, Error};
-use wiremock::matchers::{method, path, path_regex};
+use wiremock::matchers::{body_string, method, path, path_regex, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const LOGIN_PAGE: &str = r#"<form method="post" action="/login?abc123=1"><input name="username"><input name="password"></form>"#;
@@ -141,4 +141,15 @@ async fn login_posts_real_form_fields() {
     Mock::given(method("GET")).and(path("/")).respond_with(ResponseTemplate::new(200).set_body_string(LOGIN_PAGE)).mount(&s).await;
     Mock::given(method("POST")).and(path_regex("^/login")).and(body_string_contains("remember=1")).and(body_string_contains("submit=Login")).and(body_string_contains("secretkey=")).respond_with(ResponseTemplate::new(200).set_body_string(IN)).expect(1).mount(&s).await;
     Client::new(&s.uri()).login("u", "p").await.unwrap();
+}
+
+#[tokio::test]
+async fn post_sends_form_and_maps_status() {
+    let s = MockServer::start().await;
+    Mock::given(method("POST")).and(path("/ucp")).and(query_param("type", "incState")).and(body_string("check=1"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"error":0,"msg":"ok"}"#)).mount(&s).await;
+    Mock::given(method("POST")).and(path("/busy")).respond_with(ResponseTemplate::new(503)).mount(&s).await;
+    let c = Client::new(&s.uri());
+    assert_eq!(c.post("/ucp?format=json&type=incState&id=1&value=2", &[("check", "1")]).await.unwrap(), r#"{"error":0,"msg":"ok"}"#);
+    assert!(matches!(c.post("/busy", &[("check", "1")]).await, Err(Error::Http(503))));
 }

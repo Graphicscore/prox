@@ -23,7 +23,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::login, commands::auto_login, commands::logout,
-            commands::search, commands::get_list, commands::get_info, commands::get_episodes, commands::get_streams, commands::resolve_stream
+            commands::search, commands::get_list, commands::get_info, commands::get_episodes, commands::get_streams, commands::resolve_stream,
+            commands::my_list, commands::title_action, commands::reminder, commands::mark_watched
         ])
         .run(tauri::generate_context!())
         .expect("tauri run");

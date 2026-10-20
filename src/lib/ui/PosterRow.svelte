@@ -16,7 +16,7 @@
       <div class="strip" aria-busy="true">{#each Array(8) as _, i (i)}<div class="skel"></div>{/each}</div>
     {:else}
       <div class="strip">
-        {#each hits as h (h.id)}<Poster id={h.id} title={h.title} rating={h.rating} onclick={() => onopen(h.id)} />{/each}
+        {#each hits as h (h.id)}<Poster id={h.id} title={h.title} rating={h.badge ?? h.rating} onclick={() => onopen(h.id)} />{/each}
       </div>
     {/if}
   </section>
