@@ -15,7 +15,7 @@ pub enum Error {
 }
 
 pub struct Client {
-    http: reqwest::Client,
+    http: std::sync::RwLock<reqwest::Client>,
     base: String,
     creds: Mutex<Option<(String, String)>>,
     relogin: Mutex<()>, // single-flight re-login; taken before any semaphore permit
@@ -25,12 +25,26 @@ pub struct Client {
 impl Client {
     pub fn new(base: &str) -> Self {
         Self {
-            http: reqwest::Client::builder().cookie_store(true).user_agent(UA).build().expect("http client"),
+            http: std::sync::RwLock::new(Self::build_http()),
             base: base.trim_end_matches('/').to_string(),
             creds: Mutex::new(None),
             relogin: Mutex::new(()),
             gate: Semaphore::new(2),
         }
+    }
+
+    fn build_http() -> reqwest::Client {
+        reqwest::Client::builder().cookie_store(true).user_agent(UA).build().expect("http client")
+    }
+
+    fn http(&self) -> reqwest::Client {
+        self.http.read().expect("http lock").clone()
+    }
+
+    /// Forget credentials and drop the session cookies (fresh cookie jar).
+    pub async fn logout(&self) {
+        self.clear_credentials().await;
+        *self.http.write().expect("http lock") = Self::build_http();
     }
 
     pub async fn set_credentials(&self, user: &str, pass: &str) {
@@ -43,10 +57,10 @@ impl Client {
 
     pub async fn login(&self, user: &str, pass: &str) -> Result<(), Error> {
         let _p = self.gate.acquire().await.expect("semaphore");
-        let home = self.http.get(&self.base).send().await?.text().await?;
+        let http = self.http();
+        let home = http.get(&self.base).send().await?.text().await?;
         let action = proxer_parse::login_action(&home).ok_or(Error::Parse("login form"))?;
-        let res = self
-            .http
+        let res = http
             .post(format!("{}{}", self.base, action))
             .form(&[("username", user), ("password", pass)])
             .send()
@@ -63,7 +77,7 @@ impl Client {
 
     async fn fetch(&self, path: &str) -> Result<String, Error> {
         let _p = self.gate.acquire().await.expect("semaphore");
-        Ok(self.http.get(format!("{}{}", self.base, path)).send().await?.text().await?)
+        Ok(self.http().get(format!("{}{}", self.base, path)).send().await?.text().await?)
     }
 
     /// GET a page; if it comes back logged out, log in again once and retry once.

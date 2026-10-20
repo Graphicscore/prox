@@ -62,3 +62,19 @@ async fn get_without_credentials_is_not_logged_in() {
     let c = Client::new(&s.uri());
     assert!(matches!(c.get("/info/1").await, Err(Error::NotLoggedIn)));
 }
+
+#[tokio::test]
+async fn logout_drops_session_and_credentials() {
+    use wiremock::matchers::header_regex;
+    let s = MockServer::start().await;
+    Mock::given(method("GET")).and(path("/")).respond_with(ResponseTemplate::new(200).set_body_string(LOGIN_PAGE)).mount(&s).await;
+    Mock::given(method("POST")).and(path_regex("^/login")).respond_with(ResponseTemplate::new(200).append_header("Set-Cookie", "sid=1; Path=/").set_body_string(IN)).expect(1).mount(&s).await;
+    Mock::given(method("GET")).and(path("/info/1")).and(header_regex("cookie", "sid=1")).respond_with(ResponseTemplate::new(200).set_body_string(IN)).mount(&s).await;
+    Mock::given(method("GET")).and(path("/info/1")).respond_with(ResponseTemplate::new(200).set_body_string("<html></html>")).mount(&s).await;
+    let c = Client::new(&s.uri());
+    c.login("u", "p").await.unwrap();
+    assert_eq!(c.get("/info/1").await.unwrap(), IN);
+    c.logout().await;
+    assert!(matches!(c.get("/info/1").await, Err(Error::NotLoggedIn)));
+    // expect(1) on the login POST: logout left no credentials to re-login with
+}

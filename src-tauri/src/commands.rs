@@ -19,10 +19,10 @@ fn err(e: Error) -> String {
 }
 
 #[tauri::command]
-pub async fn login(app: State<'_, App>, username: String, password: String, remember: bool) -> Result<(), String> {
+pub async fn login(app: State<'_, App>, username: String, password: String, remember: bool) -> Result<bool, String> {
     app.client.login(&username, &password).await.map_err(err)?;
-    if remember { app.store.save(&username, &password)?; }
-    Ok(())
+    // true = credentials persisted (or not requested); false = remember requested but keychain write failed
+    Ok(!remember || app.store.save(&username, &password).is_ok())
 }
 
 #[tauri::command]
@@ -38,7 +38,7 @@ pub async fn auto_login(app: State<'_, App>) -> Result<bool, String> {
 #[tauri::command]
 pub async fn logout(app: State<'_, App>) -> Result<(), String> {
     app.store.clear();
-    app.client.clear_credentials().await;
+    app.client.logout().await;
     Ok(())
 }
 
@@ -71,4 +71,26 @@ fn url_encode(s: &str) -> String {
         b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' => (b as char).to_string(),
         _ => format!("%{b:02X}"),
     }).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn url_encode_cases() {
+        assert_eq!(url_encode("a b&c#d"), "a%20b%26c%23d");
+        assert_eq!(url_encode("é"), "%C3%A9");
+        assert_eq!(url_encode("外"), "%E5%A4%96");
+        assert_eq!(url_encode("Az09-_."), "Az09-_.");
+    }
+
+    #[test]
+    fn err_codes() {
+        assert_eq!(err(Error::NotLoggedIn), "NotLoggedIn");
+        assert_eq!(err(Error::BadCredentials), "BadCredentials");
+        assert_eq!(err(Error::Parse("x")), "Parse:x");
+        let n = reqwest::Client::new().get("http://").build().unwrap_err();
+        assert_eq!(err(Error::Network(n)), "Network");
+    }
 }
