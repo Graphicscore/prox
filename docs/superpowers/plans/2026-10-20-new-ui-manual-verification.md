@@ -28,6 +28,15 @@ Setup. The human logs in on each device; agents then drive the app.
 - [ ] Episode tiles are tappable (4 per row), chips wrap cleanly.
 - [ ] Watch plays; Android Back closes player, then title.
 
+## Added in final review
+- [ ] Login screen (log out to see it): padded from the window edges, fields fill the row; on TV it keeps the overscan margin.
+- [ ] Moving Up/Down never leaves the focused element hidden under the top bar (chips, poster tops, focus rings fully visible).
+- [ ] TV Search field: arriving by D-pad does not open the keyboard, Select opens it, Back closes it.
+- [ ] TV player: the D-pad stays inside the player; fullscreen still works.
+- [ ] Right at the end of a poster row may jump to the next row (known behavior).
+
+Screenshots in dev: demo mode is opt-in, add `?demo` to every URL (e.g. `http://localhost:1420/?demo&screen=home&tv=1`; also `&screen=login`).
+
 ## Results
 (fill in: device, date, pass/fail, notes)
 

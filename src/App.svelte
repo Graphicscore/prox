@@ -32,7 +32,10 @@
     onBackButtonPress(() => { if (!handleBack()) exit(0).catch(() => {}); })
       .then((l) => { if (gone) void l.unregister(); else offBack = () => void l.unregister(); })
       .catch(() => {});
-    (async () => { screen = (await api.autoLogin().catch(() => false)) ? startScreen() : "login"; })();
+    (async () => {
+      const ok = await api.autoLogin().catch(() => false);
+      screen = ok && !(import.meta.env.DEV && new URLSearchParams(location.search).get("screen") === "login") ? startScreen() : "login"; // dev: ?screen=login shows Login
+    })();
     return () => { gone = true; offDpad(); offInputs(); offBack?.(); };
   });
   async function logout() { await api.logout(); warning = ""; screen = "login"; }

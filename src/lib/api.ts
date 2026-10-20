@@ -46,5 +46,5 @@ const realApi = {
 };
 
 export type Api = typeof realApi;
-// Dev only: in a plain browser (npm run dev, no Tauri) use fake data so screens can be rendered without a login.
-export const api: Api = import.meta.env.DEV && !("__TAURI_INTERNALS__" in window) ? makeDemoApi() : realApi;
+// Dev only, explicit opt-in: `npm run dev` + `?demo` in the URL uses fake data so screens render without a login.
+export const api: Api = import.meta.env.DEV && new URLSearchParams(location.search).has("demo") ? makeDemoApi() : realApi;
