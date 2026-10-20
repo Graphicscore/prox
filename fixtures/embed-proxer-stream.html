@@ -1,0 +1,27 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<script language="JavaScript" type="text/javascript" CHARSET="UTF-8" src="/js/jquery-1.9.1.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+</head>
+<body style="background-color: #000; margin:0;">
+<div id="player_code">
+
+    <link rel="stylesheet" type="text/css" href="/player/plyr2/psplayer-global.css">
+    <link rel="stylesheet" type="text/css" href="/player/plyr2/plyr.css?<redacted>">
+    <video class="" controls id="plyr" style="width: 100%;height: 100%; position: fixed;background-color: #000;" crossorigin="anonymous">
+    <source type="video/mp4" src="https://s90.ps.proxer.me/files/4jwPrB/video.mp4">
+    </video>
+    <div class="video_fw_info" style="display: none;">Du hast die freiwillige Werbung aktiv und zusätzlich einen Werbeblocker. Bitte <a target="_blank" href="https://proxer.me/ucp?<redacted>">klicke hier</a> und deaktiviere entweder die freiwillige Werbung oder den Werbeblocker, damit dieser Stream funktioniert.</div>
+
+    <script type="text/javascript">var proxerstream_player = "html5";</script>
+    <script type="text/javascript" src="/player/plyr2/psplayer-global.js?<redacted>"></script>
+    <script type="text/javascript" src="/player/plyr2/plyr.js?<redacted>"></script>
+    <script>
+    const player = new Plyr('#plyr', {disableContextMenu: true, ads:{enabled: false,tagUrl: '',invertTime: true}});
+    player.on('loadeddata', event => { player.currentTime = 0; });
+    </script>
+    </div>
+</body>
+</html>
