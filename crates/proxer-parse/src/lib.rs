@@ -1,2 +1,10 @@
+mod episodes;
+mod info;
 mod search;
+mod session;
+mod streams;
+pub use episodes::{parse_episodes, Episode};
+pub use info::{parse_info, Info};
 pub use search::{parse_search, SearchHit};
+pub use session::{is_logged_in, login_action};
+pub use streams::{parse_streams, ParseError, Stream, StreamKind};
