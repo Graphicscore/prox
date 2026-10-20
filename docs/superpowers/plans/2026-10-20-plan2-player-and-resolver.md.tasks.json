@@ -4,14 +4,14 @@
   {
    "id": "1",
    "subject": "Task 1: proxer-parse: embed page parser and embed URL",
-   "status": "pending",
+   "status": "completed",
    "blockedBy": [],
    "description": "**Goal:** `parse_embed(html) -> Result<MediaSource, EmbedError>` and `Stream::embed_url()`.\n\n**Files:**\n- Create: `crates/proxer-parse/src/embed.rs`\n- Modify: `crates/proxer-parse/src/lib.rs`, `crates/proxer-parse/src/streams.rs`\n- Test: `crates/proxer-parse/tests/embed.rs`\n\n**Acceptance Criteria:**\n- [ ] `parse_embed(fixtures/embed-proxer-stream.html)` gives an `https://` URL ending in `/video.mp4`, mime `video/mp4`, `expires_at == None`.\n- [ ] `parse_embed(fixtures/embed-ps-test.html)` gives an `https://` URL containing `/fb/`.\n- [ ] A `<source src=\"https://...?a=XyZ&amp;t=1790000000\">` gives the URL with `&` decoded and `expires_at == Some(1790000000)`.\n- [ ] Missing `<source>`, or a non-`https` src, gives `Err(EmbedError::NoSource)`.\n- [ ] `Stream::embed_url()` replaces `#` in `replace` with `code`.\n\n**Verify:** `cargo test -p proxer-parse --test embed` → all tests pass\n\nFull steps in the plan document, Task 1.\n\n```json:metadata\n{\"files\": [\"crates/proxer-parse/src/embed.rs\", \"crates/proxer-parse/src/lib.rs\", \"crates/proxer-parse/src/streams.rs\", \"crates/proxer-parse/tests/embed.rs\"], \"verifyCommand\": \"cargo test -p proxer-parse --test embed\", \"acceptanceCriteria\": [\"`parse_embed(fixtures/embed-proxer-stream.html)` gives an `https://` URL ending in `/video.mp4`, mime `video/mp4`, `expires_at == None`.\", \"`parse_embed(fixtures/embed-ps-test.html)` gives an `https://` URL containing `/fb/`.\", \"A `<source src=\\\"https://...?a=XyZ&amp;t=1790000000\\\">` gives the URL with `&` decoded and `expires_at == Some(1790000000)`.\", \"Missing `<source>`, or a non-`https` src, gives `Err(EmbedError::NoSource)`.\", \"`Stream::embed_url()` replaces `#` in `replace` with `code`.\"], \"modelTier\": \"standard\"}\n```"
   },
   {
    "id": "2",
    "subject": "Task 2: proxer-client: allowlisted anonymous embed fetch",
-   "status": "pending",
+   "status": "completed",
    "blockedBy": [
     "1"
    ],
@@ -20,7 +20,7 @@
   {
    "id": "3",
    "subject": "Task 3: Tauri command `resolve_stream`",
-   "status": "pending",
+   "status": "completed",
    "blockedBy": [
     "1",
     "2"
@@ -30,7 +30,7 @@
   {
    "id": "4",
    "subject": "Task 4: Svelte Player and stream selection",
-   "status": "pending",
+   "status": "completed",
    "blockedBy": [
     "3"
    ],
@@ -39,12 +39,12 @@
   {
    "id": "5",
    "subject": "Task 5: Content Security Policy and manual walk-through",
-   "status": "pending",
+   "status": "completed",
    "blockedBy": [
     "4"
    ],
    "description": "**Goal:** Replace the template's `csp: null` with a restrictive policy that still allows the player, and document the manual playback checks.\n\n**Files:**\n- Modify: `src-tauri/tauri.conf.json`\n- Create: `docs/superpowers/plans/2026-10-20-plan2-manual-verification.md`\n\n**Acceptance Criteria:**\n- [ ] `app.security.csp` and `app.security.devCsp` are set (no longer `null`); `media-src` and `img-src` allow `https:`, `frame-src` allows only `https://*.proxer.me`, `connect-src` allows Tauri IPC (`ipc:` and `http://ipc.localhost`), and `devCsp` additionally allows the Vite dev server and its websocket on port 1420.\n- [ ] The walk-through document lists the checks below and records the result for each.\n- [ ] `cargo build -p proxer-app` and `npm run build` succeed.\n- [ ] **Human-verified:** in `npm run tauri dev` the app still loads, logs in and searches (the CSP must not break IPC), and a normal and an airing stream both play.\n\n**Verify:** `cargo build -p proxer-app && npm run build` → exit 0; manual walk-through for the rest\n\nFull steps in the plan document, Task 5.\n\n```json:metadata\n{\"files\": [\"src-tauri/tauri.conf.json\", \"docs/superpowers/plans/2026-10-20-plan2-manual-verification.md\"], \"verifyCommand\": \"cargo build -p proxer-app && npm run build\", \"acceptanceCriteria\": [\"`app.security.csp` and `app.security.devCsp` are set (no longer `null`); `media-src` and `img-src` allow `https:`, `frame-src` allows only `https://*.proxer.me`, `connect-src` allows Tauri IPC (`ipc:` and `http://ipc.localhost`), and `devCsp` additionally allows the Vite dev server and its websocket on port 1420.\", \"The walk-through document lists the checks below and records the result for each.\", \"`cargo build -p proxer-app` and `npm run build` succeed.\", \"**Human-verified:** in `npm run tauri dev` the app still loads, logs in and searches (the CSP must not break IPC), and a normal and an airing stream both play.\"], \"modelTier\": \"standard\"}\n```"
   }
  ],
- "lastUpdated": "2026-10-20T17:55:00+02:00"
+ "lastUpdated": "2026-10-20T18:15:00+02:00"
 }
