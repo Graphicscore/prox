@@ -44,6 +44,7 @@
     if (tag === "INPUT") return;
     if (e.key === "f" || e.key === "F") { setFull(!full); e.preventDefault(); return; }
     if (!video) return;
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") { if (tag !== "VIDEO" && !full) return; }
     if (e.key === "ArrowLeft") { video.currentTime = Math.max(0, video.currentTime - 10); e.preventDefault(); }
     else if (e.key === "ArrowRight") { video.currentTime += 10; e.preventDefault(); }
     else if ((e.key === " " && tag !== "BUTTON") || (e.key === "Enter" && tag === "VIDEO")) { if (video.paused) video.play().catch(() => {}); else video.pause(); e.preventDefault(); }
