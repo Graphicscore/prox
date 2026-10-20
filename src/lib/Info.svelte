@@ -1,7 +1,9 @@
 <script lang="ts">
   import { api, streamLabel, describeError, type Info, type Episode, type PageLink, type Stream } from "./api";
+  import Player from "./Player.svelte";
   let { id, onback, onauth }: { id: number; onback: () => void; onauth: () => void } = $props();
   let info = $state<Info | null>(null), episodes = $state<Episode[]>([]), pages = $state<PageLink[]>([]);
+  let playing = $state<Stream | null>(null);
   let epPage = $state(1), streams = $state<Stream[]>([]);
   let selected = $state<{ ep: number; lang: string } | null>(null), error = $state("");
   function fail(x: unknown) { if (x === "NotLoggedIn") onauth(); else error = describeError(x); }
@@ -23,7 +25,7 @@
     })();
   });
   async function pick(ep: number, lang: string) {
-    selected = { ep, lang }; streams = []; error = "";
+    playing = null; selected = { ep, lang }; streams = []; error = "";
     const mine = selected; // drop the result if another pick happened meanwhile
     try {
       const r = await api.streams(id, ep, lang);
@@ -53,7 +55,17 @@
   {#if selected}
     <h3>Streams for episode {selected.ep} ({selected.lang})</h3>
     <ul>
-      {#each streams as s}<li>{s.name} <small>[{streamLabel(s)}]</small></li>{:else}<li>No streams (yet)</li>{/each}
+      {#each streams as s}
+        <li>
+          <button disabled={streamLabel(s) === "Unsupported"} onclick={() => (playing = s)}>{s.name}</button>
+          <small>[{streamLabel(s)}]</small>
+        </li>
+      {:else}<li>No streams (yet)</li>{/each}
     </ul>
   {/if}
+{/if}
+{#if playing}
+  {#key playing}
+    <Player stream={playing} onback={() => (playing = null)} {onauth} />
+  {/key}
 {/if}
