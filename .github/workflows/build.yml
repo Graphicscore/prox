@@ -1,6 +1,6 @@
 name: build
 
-# Builds the latest commit of master for Linux (deb + AppImage) and Android (debug APKs per ABI).
+# Builds the latest commit of master for Linux (deb + AppImage) and Android (signed release APKs per ABI).
 # Download the files from the run's "Artifacts" section.
 on:
   push:
@@ -72,11 +72,23 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION"
           echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
       - run: npm ci
-      # Debug-signed so the APKs install directly (no release keystore in the repo). One APK per ABI:
+      - name: Release signing key (repository secrets)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_B64" && test -n "$KEY_PASSWORD" || { echo "::error::ANDROID_KEYSTORE_BASE64 / ANDROID_KEY_PASSWORD secrets missing"; exit 1; }
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/proxer-release.jks"
+          printf 'password=%s\nkeyAlias=proxer\nstoreFile=%s\n' "$KEY_PASSWORD" "$RUNNER_TEMP/proxer-release.jks" > src-tauri/gen/android/keystore.properties
+      # Release APKs signed with the fixed key, so new builds install over old ones. One APK per ABI:
       # arm64 for most phones/TVs, armv7 for older 32-bit TVs, x86_64 for emulators.
-      - run: npm run tauri android build -- --debug --apk --split-per-abi --target aarch64 armv7 x86_64
+      - run: npm run tauri android build -- --apk --split-per-abi --target aarch64 armv7 x86_64
+      - name: Check signatures
+        run: |
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          for a in src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk; do "$BT/apksigner" verify "$a"; echo "signed: $a"; done # bash -e: an unsigned APK fails the job
       - uses: actions/upload-artifact@v4
         with:
           name: proxer-android-${{ github.sha }}
-          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          path: src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk
           if-no-files-found: error
