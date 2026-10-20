@@ -21,7 +21,7 @@ async fn get_relogins_once() {
     let s = MockServer::start().await;
     Mock::given(method("GET")).and(path("/")).respond_with(ResponseTemplate::new(200).set_body_string(LOGIN_PAGE)).mount(&s).await;
     Mock::given(method("POST")).and(path_regex("^/login")).respond_with(ResponseTemplate::new(200).set_body_string(IN)).expect(1).mount(&s).await;
-    Mock::given(method("GET")).and(path("/info/1")).respond_with(ResponseTemplate::new(200).set_body_string("<html>404</html>")).up_to_n_times(1).mount(&s).await;
+    Mock::given(method("GET")).and(path("/info/1")).respond_with(ResponseTemplate::new(200).set_body_string("<html>404</html>")).up_to_n_times(2).mount(&s).await;
     Mock::given(method("GET")).and(path("/info/1")).respond_with(ResponseTemplate::new(200).set_body_string(IN)).mount(&s).await;
     let c = Client::new(&s.uri());
     c.set_credentials("u", "p").await;
@@ -37,6 +37,22 @@ async fn get_after_failed_relogin_is_not_logged_in() {
     let c = Client::new(&s.uri());
     c.set_credentials("u", "bad").await;
     assert!(matches!(c.get("/info/1").await, Err(Error::NotLoggedIn)));
+    // bad credentials were cleared: no further login POST (expect(1) above)
+    assert!(matches!(c.get("/info/1").await, Err(Error::NotLoggedIn)));
+}
+
+#[tokio::test]
+async fn concurrent_gets_login_once() {
+    let s = MockServer::start().await;
+    Mock::given(method("GET")).and(path("/")).respond_with(ResponseTemplate::new(200).set_body_string(LOGIN_PAGE)).mount(&s).await;
+    Mock::given(method("POST")).and(path_regex("^/login")).respond_with(ResponseTemplate::new(200).set_body_string(IN)).expect(1).mount(&s).await;
+    Mock::given(method("GET")).and(path("/info/1")).respond_with(ResponseTemplate::new(200).set_body_string("<html>404</html>")).up_to_n_times(3).mount(&s).await;
+    Mock::given(method("GET")).and(path("/info/1")).respond_with(ResponseTemplate::new(200).set_body_string(IN)).mount(&s).await;
+    let c = Client::new(&s.uri());
+    c.set_credentials("u", "p").await;
+    let (a, b) = tokio::join!(c.get("/info/1"), c.get("/info/1"));
+    assert_eq!(a.unwrap(), IN);
+    assert_eq!(b.unwrap(), IN);
 }
 
 #[tokio::test]

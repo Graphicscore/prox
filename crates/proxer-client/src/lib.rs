@@ -18,6 +18,7 @@ pub struct Client {
     http: reqwest::Client,
     base: String,
     creds: Mutex<Option<(String, String)>>,
+    relogin: Mutex<()>, // single-flight re-login; taken before any semaphore permit
     gate: Semaphore, // max 2 concurrent requests (spec: politeness)
 }
 
@@ -27,6 +28,7 @@ impl Client {
             http: reqwest::Client::builder().cookie_store(true).user_agent(UA).build().expect("http client"),
             base: base.trim_end_matches('/').to_string(),
             creds: Mutex::new(None),
+            relogin: Mutex::new(()),
             gate: Semaphore::new(2),
         }
     }
@@ -70,12 +72,23 @@ impl Client {
         if proxer_parse::is_logged_in(&body) {
             return Ok(body);
         }
+        let _one = self.relogin.lock().await;
+        // another get may have re-logged-in while we waited
+        let body = self.fetch(path).await?;
+        if proxer_parse::is_logged_in(&body) {
+            return Ok(body);
+        }
         let creds = self.creds.lock().await.clone();
         let (u, p) = creds.ok_or(Error::NotLoggedIn)?;
-        self.login(&u, &p).await.map_err(|e| match e {
-            Error::BadCredentials => Error::NotLoggedIn,
-            other => other,
-        })?;
+        if let Err(e) = self.login(&u, &p).await {
+            return Err(match e {
+                Error::BadCredentials => {
+                    self.clear_credentials().await; // avoid re-POSTing a bad password (lockout)
+                    Error::NotLoggedIn
+                }
+                other => other,
+            });
+        }
         let body = self.fetch(path).await?;
         if proxer_parse::is_logged_in(&body) { Ok(body) } else { Err(Error::NotLoggedIn) }
     }
