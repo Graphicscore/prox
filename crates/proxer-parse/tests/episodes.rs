@@ -1,4 +1,4 @@
-use proxer_parse::{parse_episodes, Episode};
+use proxer_parse::{parse_episode_pages, parse_episodes, Episode, PageLink};
 
 #[test]
 fn groups_languages_per_episode() {
@@ -16,4 +16,18 @@ fn groups_languages_per_episode() {
 #[test]
 fn no_links_is_empty() {
     assert!(parse_episodes("<html></html>", 1).is_empty());
+}
+
+#[test]
+fn episode_pages_from_pager() {
+    let html = r##"<a href="/info/53/list/1#top">1 - 50</a> <a href="/info/53/list/2#top"> 51 - 100 </a>
+                   <a href="/info/53/list/1#top">1 - 50</a> <a href="/info/99/list/2#top">other</a>"##;
+    assert_eq!(
+        parse_episode_pages(html, 53),
+        vec![
+            PageLink { page: 1, label: "1 - 50".into() },
+            PageLink { page: 2, label: "51 - 100".into() },
+        ]
+    );
+    assert!(parse_episode_pages("<html></html>", 53).is_empty());
 }
