@@ -1,13 +1,14 @@
 <script lang="ts">
   import { coverUrl } from "./helpers";
   let { id, title = "", class: cls = "" }: { id: number; title?: string; class?: string } = $props();
-  let failed = $state(false);
+  let failedId = $state<number | null>(null);
+  const failed = $derived(failedId === id);
 </script>
 
 {#if failed}
   <div class="ph {cls}" aria-hidden="true">{title.slice(0, 1)}</div>
 {:else}
-  <img class={cls} src={coverUrl(id)} alt="" loading="lazy" onerror={() => (failed = true)} />
+  <img class={cls} src={coverUrl(id)} alt="" loading="lazy" onerror={() => (failedId = id)} />
 {/if}
 
 <style>

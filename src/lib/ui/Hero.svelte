@@ -25,7 +25,7 @@
   .in { position: absolute; left: var(--pad); right: var(--pad); bottom: 16px; display: flex; gap: 18px; align-items: flex-end; }
   .p { flex: 0 0 var(--hero-poster-w); height: calc(var(--hero-poster-w) * 1.4); box-shadow: 0 6px 18px #0008; border-radius: var(--radius); }
   .txt { min-width: 0; }
-  h1 { font-size: 1.6rem; color: var(--text-hi); }
+  h1 { overflow-wrap: anywhere; font-size: 1.6rem; color: var(--text-hi); }
   .meta { color: var(--text); opacity: 0.8; margin: 4px 0 10px; }
   .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 </style>
