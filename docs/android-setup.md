@@ -47,3 +47,11 @@ cp src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-deb
 APK output path (both builds): `src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk`
 
 Install on a running emulator/device: `adb install -r <apk>` (use `adb -s <serial>` when several are attached).
+
+## Release signing
+
+Release APKs are signed with one fixed key so new builds install over old ones.
+- Key: `~/.local/share/proxer-android/proxer-release.jks` (PKCS12, alias `proxer`), password in `~/.local/share/proxer-android/keystore.properties`. **Back both files up**: a lost key means users must uninstall to update.
+- Local release build: copy `keystore.properties` to `src-tauri/gen/android/keystore.properties` (gitignored), then `npm run tauri android build -- --apk --split-per-abi --target <abi>`. Without that file the release APK is unsigned.
+- CI: repository secrets `ANDROID_KEYSTORE_BASE64` (base64 of the .jks) and `ANDROID_KEY_PASSWORD`; the workflow writes `keystore.properties` and checks every APK with `apksigner verify`.
+- A debug build installed earlier has a different signature: uninstall it once before installing a release APK.
