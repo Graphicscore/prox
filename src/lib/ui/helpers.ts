@@ -77,3 +77,10 @@ export function calendarDays(entries: CalendarEntry[], now: Date): { key: string
 /** Episode preview frame. Only airing streams (`ps-test`) have one; for other codes the CDN returns a placeholder. */
 export const streamThumb = (s: Stream): string | null =>
   s.type === "ps-test" && /^[a-z0-9]+$/.test(s.code) ? `https://stream-service-cdn.proxer.me/thumb/${s.code}.jpg` : null;
+
+/** Player time label: m:ss, or h:mm:ss from one hour. */
+export function fmtTime(sec: number): string {
+  const t = Math.max(0, Math.floor(Number.isFinite(sec) ? sec : 0)), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+  const ss = String(s).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
+}

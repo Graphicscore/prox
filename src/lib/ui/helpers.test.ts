@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activeLang, streamThumb, calendarDays, pageWindow, coverUrl, episodesWith, languagesOf, myListHits, nearEnd, nextEpisode } from "./helpers.ts";
+import { activeLang, fmtTime, streamThumb, calendarDays, pageWindow, coverUrl, episodesWith, languagesOf, myListHits, nearEnd, nextEpisode } from "./helpers.ts";
 
 const eps = [
   { number: 2, langs: ["gersub", "engsub"] },
@@ -90,4 +90,12 @@ test("streamThumb: airing streams only, safe codes only", () => {
   assert.equal(streamThumb(S("ps-test", "hdarrnfzlxyw")), "https://stream-service-cdn.proxer.me/thumb/hdarrnfzlxyw.jpg");
   assert.equal(streamThumb(S("proxer-stream", "z6iu152riwx4")), null);
   assert.equal(streamThumb(S("ps-test", "../x")), null);
+});
+
+test("fmtTime", () => {
+  assert.equal(fmtTime(0), "0:00");
+  assert.equal(fmtTime(65.9), "1:05");
+  assert.equal(fmtTime(1420), "23:40");
+  assert.equal(fmtTime(3725), "1:02:05");
+  assert.equal(fmtTime(NaN), "0:00");
 });
