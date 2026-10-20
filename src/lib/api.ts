@@ -10,6 +10,15 @@ export type PageLink = { page: number; label: string };
 export type EpisodeList = { episodes: Episode[]; pages: PageLink[] };
 export const streamLabel = (s: Stream) => (s.type === "proxer-stream" ? "Normal" : s.type === "ps-test" ? "Airing" : "Unsupported");
 
+/** Embed URL from untrusted page data; mirrors the Rust is_allowed_embed_url rules. */
+export function safeEmbedUrl(s: Stream): string | null {
+  try {
+    const u = new URL(s.replace.replace("#", s.code));
+    const ok = u.protocol === "https:" && !u.username && !u.password && !u.port && u.hostname.endsWith(".proxer.me");
+    return ok ? u.href : null;
+  } catch { return null; }
+}
+
 export function describeError(x: unknown): string {
   const c = String(x);
   if (c === "BadCredentials") return "Wrong username or password";
