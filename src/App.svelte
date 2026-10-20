@@ -4,7 +4,7 @@
   import Login from "./lib/Login.svelte";
   import Home from "./lib/Home.svelte";
   import Search from "./lib/Search.svelte";
-  import Info from "./lib/Info.svelte";
+  import Title from "./lib/Title.svelte";
   import Shell from "./lib/ui/Shell.svelte";
   import { exit, onBackButtonPress } from "@tauri-apps/api/app";
   import { currentTv } from "./lib/tv";
@@ -50,7 +50,7 @@
     {:else if screen === "search"}
       <Search onopen={open} onauth={auth} />
     {:else}
-      <Info {id} onback={() => (screen = from)} onauth={auth} />
+      <Title {id} onback={() => (screen = from)} onauth={auth} />
     {/if}
   </Shell>
 {/if}

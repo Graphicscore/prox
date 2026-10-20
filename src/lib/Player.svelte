@@ -89,6 +89,8 @@
 </section>
 
 <style>
+  section:not(.full) { margin: 18px var(--pad); padding: 12px; background: var(--bg-2); border-radius: var(--radius); }
+  .bar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
   .media { width: 100%; max-height: 80vh; }
   .frame { aspect-ratio: 16 / 9; border: 0; }
   .full { position: fixed; inset: 0; z-index: 1000; background: #000; display: flex; flex-direction: column; padding: 0.5rem; box-sizing: border-box; }
