@@ -8,6 +8,7 @@
   import Title from "./lib/Title.svelte";
   import Shell from "./lib/ui/Shell.svelte";
   import Loading from "./lib/ui/Loading.svelte";
+  import Toasts from "./lib/ui/Toasts.svelte";
   import { clearRecent } from "./lib/recent";
   import { exit, onBackButtonPress } from "@tauri-apps/api/app";
   import { currentTv } from "./lib/tv";
@@ -84,6 +85,8 @@
     {#if screen === "info"}<div class="view"><Title {id} onback={back} onauth={auth} /></div>{/if}
   </Shell>
 {/if}
+
+<Toasts />
 
 <style>
   .warn { padding: 8px var(--pad); color: var(--muted); }

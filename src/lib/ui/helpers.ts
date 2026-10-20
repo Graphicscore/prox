@@ -84,3 +84,19 @@ export function fmtTime(sec: number): string {
   const ss = String(s).padStart(2, "0");
   return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
 }
+
+/** Episode the Watch button plays: after the list progress, or the one last started here if that is later;
+ *  from 1 again when the known total is reached. */
+export function resumeEpisode(progress: number, total: number, recentEp: number | null): number {
+  if (total > 0 && progress >= total) return 1;
+  return Math.max(progress + 1, recentEp ?? 1);
+}
+
+/** The episode page ("51 - 100") that contains `ep`, or null. */
+export function pageFor(pages: PageLink[], ep: number): number | null {
+  for (const p of pages) {
+    const [a, b] = p.label.split("-").map((x) => Number(x.trim()));
+    if (ep >= a && ep <= b) return p.page;
+  }
+  return null;
+}

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activeLang, fmtTime, streamThumb, calendarDays, pageWindow, coverUrl, episodesWith, languagesOf, myListHits, nearEnd, nextEpisode } from "./helpers.ts";
+import { activeLang, pageFor, resumeEpisode, fmtTime, streamThumb, calendarDays, pageWindow, coverUrl, episodesWith, languagesOf, myListHits, nearEnd, nextEpisode } from "./helpers.ts";
 
 const eps = [
   { number: 2, langs: ["gersub", "engsub"] },
@@ -98,4 +98,22 @@ test("fmtTime", () => {
   assert.equal(fmtTime(1420), "23:40");
   assert.equal(fmtTime(3725), "1:02:05");
   assert.equal(fmtTime(NaN), "0:00");
+});
+
+test("resumeEpisode: next unwatched, a later started episode wins, restart when finished", () => {
+  assert.equal(resumeEpisode(0, 12, null), 1);
+  assert.equal(resumeEpisode(3, 12, null), 4);
+  assert.equal(resumeEpisode(3, 12, 3), 4);   // ep 3 counted as watched
+  assert.equal(resumeEpisode(2, 12, 5), 5);   // started ep 5 here, list behind
+  assert.equal(resumeEpisode(12, 12, 12), 1); // finished: from the start
+  assert.equal(resumeEpisode(7, 0, null), 8); // airing, unknown total
+});
+
+test("pageFor finds the page by its label range", () => {
+  const P = [{ page: 1, label: "1 - 50" }, { page: 2, label: "51 - 100" }, { page: 3, label: "101 - 120" }];
+  assert.equal(pageFor(P, 1), 1);
+  assert.equal(pageFor(P, 51), 2);
+  assert.equal(pageFor(P, 120), 3);
+  assert.equal(pageFor(P, 121), null);
+  assert.equal(pageFor([], 3), null);
 });
