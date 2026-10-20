@@ -16,7 +16,7 @@ Anime-Kalender stays piece 3.
 ## Findings (logged-in pages, read in the user's browser, nothing clicked)
 
 - **Token**: every logged-in page has a hidden input `#proxerToken`. Its VALUE is used as a query parameter NAME with value 1 on every write. Never log it; reqwest errors are stripped of URLs.
-- **Title actions**: `POST /info/<id>?format=json&json=<note|favor|finish>&<token>=1`, body `checkPost=1`. Response JSON `{error, msg, ...}` (German text). The info page shows no current state for these (plain links).
+- **Title actions**: `POST /info/<id>?format=json&json=<note|favor|finish>&<token>=1`, body `checkPost=1`. Response JSON `{uid, code, title, msg}` (verified live): `title` is the readable German sentence (HTML entities), `msg` an HTML breadcrumb; no `error` key. Favorites are capped at 10 (code 3). The info page shows no current state for these (plain links).
 - **Reminder**: `POST /watch/<id>/<ep>/<lang>?format=json&type=reminder&<token>=1&title=<reminder_this|reminder_next>`, body `check=1`. Response JSON with `msg`.
 - **My list**: `GET /ucp?s=anime` embeds the whole list as `var ucp_list_items = [{...}];` (567 entries for this user, 148 KB, one page). Each item has string fields `id` (title id), `cid` (list entry id), `name`, `episode` (progress), `episodes` (total, "0" if unknown), `comment_state` ("0" Geschaut, "1" Am Schauen, "2" Wird noch geschaut, "3" Abgebrochen), `timestamp` (unix, last change), `medium`, `media_format`, plus fields we ignore (comment, rating, ...). Not sorted.
 - **Progress**: `POST /ucp?format=json&type=incState&id=<cid>&value=<n>&<token>=1`, body `check=1`. Sets the progress to `n` (absolute, despite the name).
