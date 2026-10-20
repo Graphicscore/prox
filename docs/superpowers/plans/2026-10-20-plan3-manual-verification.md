@@ -51,3 +51,11 @@ Phone (`Pixel_10_Pro_XL`, 1344x2992, density 480):
 - Logcat: only `cc/tiles/tile_manager.cc: tile memory limits exceeded` (software GL emulator noise).
 
 Final tested emulator command: `emulator -avd <name> -no-window -no-audio -gpu swiftshader_indirect -no-snapshot -no-boot-anim` (boot < 4 min each, KVM). Both emulators shut down (`adb emu kill`, no qemu left).
+
+## Results (Task 7 fixes, agent run)
+
+- TV detection: `MainActivity` exposes `AndroidTv.isTv()` (UiModeManager) via `onWebViewCreate`; `detectTv` order is override, native, heuristic. On `Television_4K` the `tv` class is now active (`t7-tv-login.png`: large text, 5vh/5vw margin) although the emulator advertises a touchscreen.
+- TV input lock (`src/lib/tvInput.ts`, TV mode only): D-pad onto Username and onto Password: `mInputShown=false`; DPAD_CENTER / ENTER on the field: `mInputShown=true`; BACK: false. Down x2 more reaches Remember me and Log in (focus ring, `t7-tv-button.png`), so D-pad navigation is no longer trapped.
+- Phone (`Pixel_10_Pro_XL`): window-insets listener pads the content view; `t7-phone-login.png` shows the status bar above the page and the "Proxer" heading fully visible.
+- Logcat both: 0 `FATAL EXCEPTION`, no CSP/"Refused to", no panics. Both emulators shut down (`adb devices` empty, no qemu).
+- Note: the phone AVD was nearly out of storage; the old app was uninstalled before installing the new APK.

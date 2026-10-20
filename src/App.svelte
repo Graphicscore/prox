@@ -8,17 +8,19 @@
   import { currentTv } from "./lib/tv";
   import { handleBack } from "./lib/back";
   import { installDpad } from "./lib/dpad";
+  import { installTvInputs } from "./lib/tvInput";
   let screen = $state<"boot" | "login" | "search" | "info">("boot"), id = $state(0), warning = $state("");
   onMount(() => {
     document.documentElement.classList.toggle("tv", currentTv());
     const offDpad = installDpad();
+    const offInputs = currentTv() ? installTvInputs() : () => {};
     let offBack: (() => void) | undefined, gone = false;
     // Android Back: close the top-most layer, else leave the app. Not available on desktop: ignore.
     onBackButtonPress(() => { if (!handleBack()) exit(0).catch(() => {}); })
       .then((l) => { if (gone) void l.unregister(); else offBack = () => void l.unregister(); })
       .catch(() => {});
     (async () => { screen = (await api.autoLogin().catch(() => false)) ? "search" : "login"; })();
-    return () => { gone = true; offDpad(); offBack?.(); };
+    return () => { gone = true; offDpad(); offInputs(); offBack?.(); };
   });
   async function logout() { await api.logout(); warning = ""; screen = "login"; }
 </script>

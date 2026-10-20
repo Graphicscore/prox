@@ -17,3 +17,18 @@ test("auto: Android without touch is a TV", () => {
   assert.equal(detectTv(TV_UA, 5, null), false);   // phone
   assert.equal(detectTv(DESKTOP_UA, 0, null), false);
 });
+
+test("override beats native", () => {
+  assert.equal(detectTv(TV_UA, 0, "0", true), false);
+  assert.equal(detectTv(DESKTOP_UA, 0, "1", false), true);
+});
+
+test("native answer beats heuristic", () => {
+  assert.equal(detectTv(TV_UA, 5, null, true), true);   // TV emulator with touchscreen
+  assert.equal(detectTv(TV_UA, 0, null, false), false);
+});
+
+test("null native falls back to heuristic", () => {
+  assert.equal(detectTv(TV_UA, 0, null, null), true);
+  assert.equal(detectTv(TV_UA, 5, null, null), false);
+});
