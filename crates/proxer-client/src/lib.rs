@@ -102,9 +102,10 @@ impl Client {
             return Err(Error::Parse("embed host not allowed"));
         }
         let _p = self.gate.acquire().await.expect("semaphore");
-        let res = self.embed_http.get(url).send().await?;
-        check_status(res.status())?;
-        Ok(res.text().await?)
+        // reqwest errors embed the request URL; embed URLs must never leak into logs
+        let res = self.embed_http.get(url).send().await.map_err(|e| e.without_url())?;
+        check_embed_status(res.status())?;
+        Ok(res.text().await.map_err(|e| e.without_url())?)
     }
 
     /// GET a page; if it comes back logged out, log in again once and retry once.
@@ -142,5 +143,34 @@ fn check_status(s: reqwest::StatusCode) -> Result<(), Error> {
 /// `https://` and a host that ends in `.proxer.me` (the bare domain and look-alikes like `evilproxer.me` are refused).
 pub fn is_allowed_embed_url(url: &str) -> bool {
     let Ok(u) = reqwest::Url::parse(url) else { return false };
-    u.scheme() == "https" && u.host_str().is_some_and(|h| h.ends_with(".proxer.me"))
+    u.scheme() == "https"
+        && u.username().is_empty()
+        && u.password().is_none()
+        && u.port().is_none()
+        && u.host_str().is_some_and(|h| h.ends_with(".proxer.me") && !h.starts_with('.'))
+}
+
+/// Embed fetches never follow redirects, so a 3xx is an error, not a page.
+fn check_embed_status(s: reqwest::StatusCode) -> Result<(), Error> {
+    if s.is_redirection() || s.is_server_error() || s.as_u16() == 429 {
+        Err(Error::Http(s.as_u16()))
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use reqwest::StatusCode;
+
+    #[test]
+    fn embed_status() {
+        for c in [200u16, 404] {
+            assert!(check_embed_status(StatusCode::from_u16(c).unwrap()).is_ok(), "{c}");
+        }
+        for c in [301u16, 302, 307, 429, 503] {
+            assert!(matches!(check_embed_status(StatusCode::from_u16(c).unwrap()), Err(Error::Http(x)) if x == c), "{c}");
+        }
+    }
 }
