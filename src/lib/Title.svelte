@@ -10,6 +10,7 @@
   let info = $state<Info | null>(null), episodes = $state<Episode[]>([]), pages = $state<PageLink[]>([]);
   let epPage = $state(1), streams = $state<Stream[]>([]), lang = $state(""), playing = $state<Stream | null>(null), playKey = $state(0);
   let selected = $state<{ ep: number; lang: string } | null>(null), error = $state("");
+  let selEps = $state<Episode[]>([]), selPage = $state(1); // the page the selected episode is on: Next follows it, not the picker
   onMount(() => pushBack(() => { onback(); return true; }));
   // Remote users land on Watch instead of nothing (Home/Search are hidden, so focus fell back to <body>).
   let watchBtn = $state<HTMLButtonElement>();
@@ -56,7 +57,7 @@
     })();
   });
   async function pick(ep: number, l: string) {
-    selected = { ep, lang: l }; streams = []; playing = null; error = "";
+    selected = { ep, lang: l }; selEps = episodes; selPage = epPage; streams = []; playing = null; error = "";
     const mine = selected; // drop the result if another pick happened meanwhile
     try {
       const r = await api.streams(id, ep, l);
@@ -73,13 +74,18 @@
     const s = streams.find((x) => streamLabel(x) !== "Unsupported");
     if (s) { playing = s; playKey++; } else if (!error) error = "No playable stream for episode " + first;
   }
-  const hasNext = $derived(!!selected && nextEpisode(episodes, selected.lang, selected.ep, pages, epPage) !== null);
+  const hasNext = $derived(!!selected && nextEpisode(selEps, selected.lang, selected.ep, pages, selPage) !== null);
   /** Next episode in the same language, first playable stream; keeps the Player instance (fullscreen stays). */
   async function playNext() {
     const cur = selected, cid = id;
     if (!cur || !playing) return;
-    let n = nextEpisode(episodes, cur.lang, cur.ep, pages, epPage);
-    if (n && "page" in n) { await loadPage(n.page); if (cid !== id || epPage !== n.page) return; n = nextEpisode(episodes, cur.lang, 0, pages, epPage); }
+    let eps = selEps, page = selPage, n = nextEpisode(eps, cur.lang, cur.ep, pages, page);
+    if (n && "page" in n) {
+      page = n.page;
+      await loadPage(page); // the picker follows to the next page
+      if (cid !== id || epPage !== page) return;
+      eps = episodes; n = nextEpisode(eps, cur.lang, cur.ep, pages, page);
+    }
     if (!n || !("ep" in n) || selected !== cur || cid !== id) return;
     const ep = n.ep;
     try {
@@ -87,7 +93,7 @@
       if (selected !== cur || cid !== id) return; // user picked something else meanwhile
       const s = r.find((x) => streamLabel(x) !== "Unsupported");
       if (!s) { error = "No playable stream for episode " + ep; return; }
-      selected = { ep, lang: cur.lang }; streams = r; playing = s;
+      selected = { ep, lang: cur.lang }; selEps = eps; selPage = page; streams = r; playing = s;
     } catch (x) { fail(x); }
   }
   function watched() {

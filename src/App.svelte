@@ -55,7 +55,7 @@
 {:else if screen !== "boot"}
   <Shell tab={screen === "info" ? null : screen} onnav={(t) => (screen = t)} onlogout={logout}>
     {#if warning}<p role="status" class="warn">{warning}</p>{/if}
-    {#if seen.home}<div hidden={screen !== "home"}><Home onopen={open} onauth={auth} /></div>{/if}
+    {#if seen.home}<div hidden={screen !== "home"}><Home active={screen === "home"} onopen={open} onauth={auth} /></div>{/if}
     {#if seen.search}<div hidden={screen !== "search"}><Search onopen={open} onauth={auth} /></div>{/if}
     {#if screen === "info"}<Title {id} onback={back} onauth={auth} />{/if}
   </Shell>

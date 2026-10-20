@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { api, describeError, type ListKind, type SearchHit } from "./api";
   import { myListHits } from "./ui/helpers";
   import PosterRow from "./ui/PosterRow.svelte";
   import Hero from "./ui/Hero.svelte";
-  let { onopen, onauth }: { onopen: (id: number) => void; onauth: () => void } = $props();
+  let { onopen, onauth, active = true }: { onopen: (id: number) => void; onauth: () => void; active?: boolean } = $props();
 
   type Row = { kind: ListKind | "mine"; title: string; status: "loading" | "ready" | "error"; hits: SearchHit[]; error: string };
   let rows = $state<Row[]>([
@@ -15,12 +15,16 @@
   ]);
   const hero = $derived(rows.find((r) => r.kind === "airing")?.hits[0] ?? null);
 
-  async function load(r: Row) {
-    r.status = "loading"; r.error = "";
-    try { r.hits = r.kind === "mine" ? myListHits(await api.myList()) : (await api.getList(r.kind)).hits; r.status = "ready"; }
-    catch (x) { if (x === "NotLoggedIn") onauth(); else { r.error = describeError(x); r.status = "error"; } }
+  /** `quiet`: refresh in place (posters stay, focus survives); a failure keeps what is shown. */
+  async function load(r: Row, quiet = false) {
+    if (!quiet) { r.status = "loading"; r.error = ""; }
+    try { r.hits = r.kind === "mine" ? myListHits(await api.myList()) : (await api.getList(r.kind)).hits; r.status = "ready"; r.error = ""; }
+    catch (x) { if (x === "NotLoggedIn") onauth(); else if (!quiet) { r.error = describeError(x); r.status = "error"; } }
   }
   onMount(() => { for (const r of rows) load(r); }); // once; not an $effect, load() writes the state it would track
+  // Home stays mounted behind an open title: back on Home, refresh only My list (watching/Note/Finished change it).
+  let wasActive = true;
+  $effect(() => { const a = active; untrack(() => { if (a && !wasActive) load(rows[0], true); wasActive = a; }); });
 </script>
 
 {#if hero}

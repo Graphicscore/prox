@@ -48,6 +48,10 @@ test("nextEpisode: same page, page boundary, last episode", () => {
   assert.deepEqual(nextEpisode(eps, "gersub", 2, pages, 1), { page: 2 });
   assert.equal(nextEpisode(eps, "gersub", 2, pages, 2), null);
   assert.equal(nextEpisode(eps, "engsub", 3, [], 1), null);
+  // Next follows the playing episode's page, searching from that episode (not from 0) on the next page
+  const page2 = [{ number: 51, langs: ["engsub"] }, { number: 52, langs: ["engsub"] }];
+  assert.deepEqual(nextEpisode(page2, "engsub", 50, pages, 2), { ep: 51 });
+  assert.deepEqual(nextEpisode(page2, "engsub", 51, pages, 2), { ep: 52 });
 });
 
 test("nearEnd: last 90 s, or last 10 % for videos under 15 min", () => {

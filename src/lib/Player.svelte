@@ -6,13 +6,13 @@
   import { setDpadRoot, setFullscreenMode, setSeekMode } from "./dpad";
   import { api, describeError, safeEmbedUrl, streamLabel, type MediaSource, type Stream } from "./api";
   let { stream, onback, onauth, hasNext = false, onnext = () => {}, onwatched = () => {} }: {
-    stream: Stream; onback: () => void; onauth: () => void; hasNext?: boolean; onnext?: () => void; onwatched?: () => void;
+    stream: Stream; onback: () => void; onauth: () => void; hasNext?: boolean; onnext?: () => unknown; onwatched?: () => void;
   } = $props();
   let near = $state(false), nextBtn = $state<HTMLButtonElement | null>(null);
   let src = $state<MediaSource | null>(null), error = $state(""), frame = $state(false), full = $state(false);
   let video = $state<HTMLVideoElement | null>(null);
   let section = $state<HTMLElement | null>(null), closeBtn = $state<HTMLButtonElement | null>(null);
-  let retried = false, focusedVideo = false, alive = true, at = 0;
+  let retried = false, focusedVideo = false, alive = true, at = 0, going = false, started = false;
   const embed = $derived(safeEmbedUrl(stream));
   const opener = document.activeElement as HTMLElement | null; // the stream/Watch button: gets focus back on close
 
@@ -31,18 +31,25 @@
   $effect(() => { // first mount and every Next: same instance, so fullscreen and focus scope survive
     if (stream === shown) return;
     shown = stream;
-    untrack(() => { src = null; error = ""; frame = false; retried = false; focusedVideo = false; at = 0; near = false; resolve(); });
+    untrack(() => { src = null; error = ""; frame = false; retried = false; focusedVideo = false; at = 0; near = false; started = false; resolve(); });
   });
   function ontime() {
     if (!video) return;
     const n = nearEnd(video.currentTime, video.duration);
     if (n && !near && document.activeElement === video) tick().then(() => nextBtn?.focus());
+    if (!n && near && document.activeElement === nextBtn) video.focus(); // seeked back: the pop-up goes, focus must not
     near = n;
   }
-  function goNext() { if (near && !frame) onwatched(); onnext(); }
-  function onended() { onwatched(); if (hasNext) onnext(); }
+  /** One switch at a time: Next can be pressed in the bar and the pop-up, and the video can end meanwhile. */
+  async function advance(watched: boolean, next: boolean) {
+    if (going) return;
+    going = true;
+    try { if (watched) onwatched(); if (next) await onnext(); } finally { going = false; }
+  }
+  const goNext = () => advance(near && !frame, true);
+  const onended = () => advance(true, hasNext);
   function onVideoError() {
-    if (!retried) { retried = true; focusedVideo = false; at = video?.currentTime ?? 0; src = null; resolve(); } // airing URLs expire: scrape again once
+    if (!retried) { retried = true; focusedVideo = false; started = false; at = video?.currentTime ?? 0; src = null; resolve(); } // airing URLs expire: scrape again once
     else error = "Playback failed";
   }
   // Focus the video once per <video>, and only if the user has not moved focus to another control.
@@ -67,7 +74,7 @@
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") { if (tag !== "VIDEO" && !full) return; }
     if (e.key === "ArrowLeft") { video.currentTime = Math.max(0, video.currentTime - 10); e.preventDefault(); }
     else if (e.key === "ArrowRight") { video.currentTime += 10; e.preventDefault(); }
-    else if ((e.key === " " && tag !== "BUTTON") || (e.key === "Enter" && tag === "VIDEO")) { if (video.paused) video.play().catch(() => {}); else video.pause(); e.preventDefault(); }
+    else if ((e.key === " " && (tag !== "BUTTON" || e.target === nextBtn)) || (e.key === "Enter" && tag === "VIDEO")) { if (video.paused) video.play().catch(() => {}); else video.pause(); e.preventDefault(); }
   }
   onMount(() => {
     closeBtn?.focus(); section?.scrollIntoView({ block: "center" });
@@ -104,7 +111,7 @@
   {:else if src}
     <!-- ponytail: src.mime unused, no HLS path; add hls.js only if a probe shows m3u8 sources -->
     <!-- svelte-ignore a11y_media_has_caption -->
-    <video class="media" tabindex="0" bind:this={video} src={src.url} controls controlslist="nofullscreen" autoplay playsinline ontimeupdate={ontime} {onended} onerror={onVideoError} onplaying={() => { retried = false; focusVideoOnce(); }} onloadedmetadata={() => { if (at && video) video.currentTime = at; at = 0; }}></video>
+    <video class="media" tabindex="0" bind:this={video} src={src.url} controls controlslist="nofullscreen" autoplay playsinline ontimeupdate={ontime} {onended} onerror={onVideoError} onplaying={() => { retried = false; focusVideoOnce(); }} onplay={() => (started = true)} onpause={() => (started = true)} oncanplay={() => { if (!started) { started = true; video?.play().catch(() => {}); } }} onloadedmetadata={() => { if (at && video) video.currentTime = at; at = 0; }}></video>
   {:else if !frame && !error}
     <p role="status">Loading…</p>
   {/if}
