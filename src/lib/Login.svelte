@@ -1,6 +1,6 @@
 <script lang="ts">
   import { api, describeError } from "./api";
-  let { onok }: { onok: (warning?: string) => void } = $props();
+  let { onok, onupdate, updating = false }: { onok: (warning?: string) => void; onupdate?: () => void; updating?: boolean } = $props();
   let username = $state(""), password = $state(""), remember = $state(true), error = $state(""), busy = $state(false);
   async function submit(e: Event) {
     e.preventDefault();
@@ -25,6 +25,7 @@
     <label class="check"><input type="checkbox" bind:checked={remember} /> Remember me</label>
     {#if error}<p role="alert">{error}</p>{/if}
     <button class="primary">{busy ? "Signing in…" : "Log in"}</button>
+    {#if onupdate}<button type="button" class="ghost update" onclick={onupdate}>{updating ? "Checking…" : "Check for updates"}</button>{/if}
   </form>
 </div>
 
@@ -41,6 +42,7 @@
   .check input { width: 1.1em; height: 1.1em; margin: 0; accent-color: var(--accent); }
   [role="alert"] { margin: 0.75rem 0; padding: 0.6em 0.8em; border-radius: var(--radius); background: #d9534f22; color: #ff8a86; }
   button { width: 100%; margin-top: 0.75rem; padding: 0.7em 1em; }
+  .update { margin-top: 0.4rem; color: var(--muted); font-size: 0.9rem; }
   @media (max-width: 480px) { .card { padding: 1.4rem; } }
   /* TV: 24px base on a 540px-high viewport; keep the whole card on screen */
   :global(html.tv) .card { padding: 1rem 1.5rem; max-width: 24rem; }

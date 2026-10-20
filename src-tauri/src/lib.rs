@@ -1,5 +1,6 @@
 mod commands;
 mod creds;
+mod update;
 
 use std::sync::Arc;
 use tauri::Manager;
@@ -24,7 +25,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::login, commands::auto_login, commands::logout,
             commands::search, commands::get_list, commands::get_calendar, commands::get_info, commands::get_episodes, commands::get_streams, commands::resolve_stream,
-            commands::my_list, commands::title_action, commands::reminder, commands::mark_watched
+            commands::my_list, commands::title_action, commands::reminder, commands::mark_watched,
+            update::check_update, update::download_update
         ])
         .run(tauri::generate_context!())
         .expect("tauri run");

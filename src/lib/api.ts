@@ -33,6 +33,7 @@ export function describeError(x: unknown): string {
   return "Something went wrong";
 }
 
+export type Update = { build: number; current: number; url: string | null; size: number; page: string };
 export type ListKind = "airing" | "rating" | "clicks";
 
 export type CalendarEntry = { id: number; title: string; episode: number; lang: string; air: number };
@@ -53,6 +54,9 @@ const realApi = {
   titleAction: (id: number, action: TitleAction) => invoke<string>("title_action", { id, action }),
   reminder: (id: number, episode: number, lang: string, which: "this" | "next") => invoke<string>("reminder", { id, episode, lang, which }),
   markWatched: (id: number, episode: number) => invoke<void>("mark_watched", { id, episode }),
+  checkUpdate: () => invoke<Update | null>("check_update"),
+  /** Android: returns the downloaded APK path; Linux AppImage: replaces itself and restarts. */
+  downloadUpdate: (url: string) => invoke<string>("download_update", { url }),
 };
 
 export type Api = typeof realApi;

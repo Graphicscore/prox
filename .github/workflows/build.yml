@@ -11,12 +11,16 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # The app compares its own version (0.1.<run number>) with the latest release tag (build-<run number>).
+  BUILD_VERSION: 0.1.${{ github.run_number }}
+
 jobs:
   test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 24, cache: npm }
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -30,8 +34,8 @@ jobs:
     needs: test
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 24, cache: npm }
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -40,10 +44,10 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libappindicator3-dev \
             librsvg2-dev patchelf libdbus-1-dev libssl-dev file
       - run: npm ci
-      - run: npm run tauri build -- --bundles deb,appimage
+      - run: npm run tauri build -- --config "{\"version\":\"$BUILD_VERSION\"}" --bundles deb,appimage
         env:
           APPIMAGE_EXTRACT_AND_RUN: 1 # linuxdeploy without FUSE on the runner
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: proxer-linux-${{ github.sha }}
           path: |
@@ -57,10 +61,10 @@ jobs:
     env:
       NDK_VERSION: 28.2.13676358
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 24, cache: npm }
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: 21 }
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -82,13 +86,41 @@ jobs:
           printf 'password=%s\nkeyAlias=proxer\nstoreFile=%s\n' "$KEY_PASSWORD" "$RUNNER_TEMP/proxer-release.jks" > src-tauri/gen/android/keystore.properties
       # Release APKs signed with the fixed key, so new builds install over old ones. One APK per ABI:
       # arm64 for most phones/TVs, armv7 for older 32-bit TVs, x86_64 for emulators.
-      - run: npm run tauri android build -- --apk --split-per-abi --target aarch64 armv7 x86_64
+      - run: npm run tauri android build -- --config "{\"version\":\"$BUILD_VERSION\"}" --apk --split-per-abi --target aarch64 armv7 x86_64
       - name: Check signatures
         run: |
           BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
           for a in src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk; do "$BT/apksigner" verify "$a"; echo "signed: $a"; done # bash -e: an unsigned APK fails the job
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: proxer-android-${{ github.sha }}
           path: src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk
           if-no-files-found: error
+
+  # Public release with fixed asset names: the in-app updater downloads from here.
+  release:
+    needs: [linux, android]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with: { name: "proxer-linux-${{ github.sha }}", path: linux }
+      - uses: actions/download-artifact@v5
+        with: { name: "proxer-android-${{ github.sha }}", path: android }
+      - name: Rename assets
+        run: |
+          mkdir out
+          one() { f=$(find "$1" -name "$2" | head -1); test -n "$f" || { echo "::error::missing $2"; exit 1; }; cp "$f" "out/$3"; }
+          one android 'app-arm64-release.apk' proxer-android-arm64.apk
+          one android 'app-arm-release.apk' proxer-android-armv7.apk
+          one android 'app-x86_64-release.apk' proxer-android-x86_64.apk
+          one linux '*.AppImage' proxer-linux-x86_64.AppImage
+          one linux '*.deb' proxer-linux-amd64.deb
+          ls -la out
+      - name: Publish release build-${{ github.run_number }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" out/* -R "${{ github.repository }}" --target "${{ github.sha }}" \
+            --title "Build ${{ github.run_number }}" --notes "Automatic build of ${{ github.sha }}. Version $BUILD_VERSION." --latest
