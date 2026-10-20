@@ -42,6 +42,17 @@ fn action_results() {
 }
 
 #[test]
+fn action_result_prefers_title_as_plain_text() {
+    let note = r#"{"uid":"1","code":"2","title":"Dieser Eintrag ist bereits in deiner Liste.","msg":"<i>User-CP</i> -> <i><a href=\"/ucp?s=anime#top\">Anime</a></i>"}"#;
+    assert_eq!(action_result(note), Some(Ok("Dieser Eintrag ist bereits in deiner Liste.".into())));
+    let favor = r#"{"uid":"1","code":"2","title":"Du hast bereits 10 Eintr&auml;ge in deinen Favoriten.","msg":"<i>User-CP</i> -> <i><a href=\"/ucp?s=anime#top\">Anime</a></i>"}"#;
+    assert_eq!(action_result(favor), Some(Ok("Du hast bereits 10 Einträge in deinen Favoriten.".into())));
+    let msg_only = r#"{"title":"","msg":"<i>User-CP</i> -> <i><a href=\"/ucp?s=anime#top\">Anime</a></i>"}"#;
+    assert_eq!(action_result(msg_only), Some(Ok("User-CP -> Anime".into())));
+    assert_eq!(action_result(r#"{"error":1,"title":"Nicht &amp; erlaubt"}"#), Some(Err("Nicht & erlaubt".into())));
+}
+
+#[test]
 fn watched_plans() {
     // planned -> progress + Am Schauen
     assert_eq!(plan_watched(&entry(2, 0, 12), 1), vec![Step::Progress(1), Step::State(1)]);

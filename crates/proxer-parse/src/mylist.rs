@@ -84,10 +84,13 @@ pub fn parse_my_list(html: &str) -> Result<Vec<ListEntry>, ListError> {
 }
 
 /// A write response: `Some(Ok(msg))`, `Some(Err(msg))` when Proxer refused (`error` != 0), `None` if not JSON
-/// (e.g. a login page after a lost session).
+/// (e.g. a login page after a lost session). The readable sentence is `title`; `msg` is often an HTML breadcrumb.
 pub fn action_result(body: &str) -> Option<Result<String, String>> {
     let v: Value = serde_json::from_str(body.trim()).ok()?;
-    let msg = v.get("msg").and_then(Value::as_str).unwrap_or("").to_string();
+    let get = |k| v.get(k).and_then(Value::as_str).unwrap_or("").trim();
+    let raw = if get("title").is_empty() { get("msg") } else { get("title") };
+    let text: String = Html::parse_fragment(raw).root_element().text().collect();
+    let msg = text.split_whitespace().collect::<Vec<_>>().join(" ");
     let failed = match v.get("error") {
         Some(Value::Number(n)) => n.as_i64() != Some(0),
         Some(Value::String(s)) => s.trim() != "0",
