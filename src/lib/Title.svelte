@@ -24,9 +24,11 @@
   /** Run a write; show Proxer's message, refresh the list state. Buttons stay enabled (TV focus), so guard re-entry. */
   async function act(run: () => Promise<string>) {
     if (busy) return;
+    const cur = id;
     busy = true; message = ""; error = "";
-    try { message = (await run()) || "Done"; await loadEntry(); } catch (x) { fail(x); }
-    busy = false;
+    try { const m = (await run()) || "Done"; if (cur === id) { message = m; await loadEntry(); } }
+    catch (x) { if (cur === id) fail(x); } // another title is open now: drop the stale result
+    finally { busy = false; }
   }
   const titleAct = (a: TitleAction) => act(() => api.titleAction(id, a));
   function fail(x: unknown) { if (x === "NotLoggedIn") onauth(); else error = describeError(x); }
