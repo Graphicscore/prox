@@ -4,6 +4,7 @@
   import Login from "./lib/Login.svelte";
   import Home from "./lib/Home.svelte";
   import Search from "./lib/Search.svelte";
+  import Calendar from "./lib/Calendar.svelte";
   import Title from "./lib/Title.svelte";
   import Shell from "./lib/ui/Shell.svelte";
   import { exit, onBackButtonPress } from "@tauri-apps/api/app";
@@ -11,17 +12,18 @@
   import { handleBack } from "./lib/back";
   import { installDpad } from "./lib/dpad";
   import { installTvInputs } from "./lib/tvInput";
-  type Screen = "boot" | "login" | "home" | "search" | "info";
-  let screen = $state<Screen>("boot"), from = $state<"home" | "search">("home"), id = $state(0), warning = $state("");
+  type Screen = "boot" | "login" | "home" | "search" | "calendar" | "info";
+  let screen = $state<Screen>("boot"), from = $state<"home" | "search" | "calendar">("home"), id = $state(0), warning = $state("");
   // Home and Search stay mounted (hidden) while a title is open: Back keeps their data, scroll and focused poster.
-  let seen = $state({ home: false, search: false }), returnFocus: HTMLElement | null = null;
-  $effect(() => { if (screen === "home" || screen === "search") seen[screen] = true; });
+  let seen = $state({ home: false, search: false, calendar: false }), returnFocus: HTMLElement | null = null;
+  $effect(() => { if (screen === "home" || screen === "search" || screen === "calendar") seen[screen] = true; });
   const startScreen = (): Screen => {
     if (import.meta.env.DEV) { // dev only: ?screen=home|search|title&id=N for screenshots in the demo mode
       const q = new URLSearchParams(location.search);
       const s = q.get("screen");
       if (q.get("id")) id = Number(q.get("id"));
       if (s === "search") return "search";
+      if (s === "calendar") return "calendar";
       if (s === "title") return "info";
     }
     return "home";
@@ -41,10 +43,10 @@
     })();
     return () => { gone = true; offDpad(); offInputs(); offBack?.(); };
   });
-  async function logout() { await api.logout(); warning = ""; seen = { home: false, search: false }; screen = "login"; }
+  async function logout() { await api.logout(); warning = ""; seen = { home: false, search: false, calendar: false }; screen = "login"; }
   const open = (i: number) => {
     returnFocus = document.activeElement as HTMLElement | null;
-    from = screen === "search" ? "search" : "home"; id = i; screen = "info";
+    from = screen === "search" || screen === "calendar" ? screen : "home"; id = i; screen = "info";
   };
   async function back() { screen = from; await tick(); if (returnFocus?.isConnected) returnFocus.focus(); }
   const auth = () => (screen = "login");
@@ -57,6 +59,7 @@
     {#if warning}<p role="status" class="warn">{warning}</p>{/if}
     {#if seen.home}<div hidden={screen !== "home"}><Home active={screen === "home"} onopen={open} onauth={auth} /></div>{/if}
     {#if seen.search}<div hidden={screen !== "search"}><Search onopen={open} onauth={auth} /></div>{/if}
+    {#if seen.calendar}<div hidden={screen !== "calendar"}><Calendar onopen={open} onauth={auth} /></div>{/if}
     {#if screen === "info"}<Title {id} onback={back} onauth={auth} />{/if}
   </Shell>
 {/if}

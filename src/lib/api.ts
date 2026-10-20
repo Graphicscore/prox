@@ -35,6 +35,8 @@ export function describeError(x: unknown): string {
 
 export type ListKind = "airing" | "rating" | "clicks";
 
+export type CalendarEntry = { id: number; title: string; episode: number; lang: string; air: number };
+
 const realApi = {
   /** resolves true if credentials were saved to the keychain (or remember=false) */
   login: (username: string, password: string, remember: boolean) => invoke<boolean>("login", { username, password, remember }),
@@ -42,6 +44,7 @@ const realApi = {
   logout: () => invoke<void>("logout"),
   search: (query: string, page = 1) => invoke<SearchPage>("search", { query, page }),
   getList: (kind: ListKind) => invoke<SearchPage>("get_list", { kind }),
+  getCalendar: () => invoke<CalendarEntry[]>("get_calendar"),
   info: (id: number) => invoke<Info>("get_info", { id }),
   episodes: (id: number, page = 1) => invoke<EpisodeList>("get_episodes", { id, page }),
   streams: (id: number, episode: number, lang: string) => invoke<Stream[]>("get_streams", { id, episode, lang }),

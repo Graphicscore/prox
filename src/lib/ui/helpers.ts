@@ -1,4 +1,4 @@
-import type { Episode, ListEntry, PageLink, SearchHit } from "../api.ts";
+import type { CalendarEntry, Episode, ListEntry, PageLink, SearchHit } from "../api.ts";
 
 /** Cover image for a title id; built in the browser, no parsing needed. */
 export const coverUrl = (id: number) => `https://cdn.proxer.me/cover/${id}.jpg`;
@@ -49,4 +49,27 @@ export function pageWindow(pages: PageLink[], cur: number, r = 2): (PageLink | n
     else if (out[out.length - 1] !== null) out.push(null);
   });
   return out;
+}
+
+const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+
+/** Calendar rows: entries grouped by local air date and sorted by time; one poster per title and day,
+ *  badge "HH:MM · Ep N" (further episodes of the same title that day are appended: "Ep 4, 5"). */
+export function calendarDays(entries: CalendarEntry[], now: Date): { key: string; label: string; hits: SearchHit[] }[] {
+  const today = dayKey(now), tomorrow = dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+  const days = new Map<string, { key: string; label: string; hits: SearchHit[] }>();
+  for (const e of [...entries].sort((a, b) => a.air - b.air)) {
+    const d = new Date(e.air * 1000), key = dayKey(d);
+    let day = days.get(key);
+    if (!day) {
+      const label = key === today ? "Today" : key === tomorrow ? "Tomorrow" : d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+      day = { key, label, hits: [] };
+      days.set(key, day);
+    }
+    const same = day.hits.find((h) => h.id === e.id);
+    if (same) { same.badge += `, ${e.episode}`; continue; }
+    const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    day.hits.push({ id: e.id, title: e.title, genres: [], kind: "", rating: null, badge: `${time} · Ep ${e.episode}` });
+  }
+  return [...days.values()];
 }
