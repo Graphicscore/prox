@@ -45,7 +45,7 @@ pub async fn logout(app: State<'_, App>) -> Result<(), String> {
 #[tauri::command]
 pub async fn search(app: State<'_, App>, query: String) -> Result<Vec<SearchHit>, String> {
     let q: String = url_encode(&query);
-    let html = app.client.get(&format!("/search?s=search&name={q}&type=all-anime")).await.map_err(err)?;
+    let html = app.client.get(&format!("/search?s=search&name={q}&typ=all-anime")).await.map_err(err)?;
     Ok(parse_search(&html))
 }
 
