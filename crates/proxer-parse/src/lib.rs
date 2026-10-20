@@ -1,9 +1,11 @@
 mod embed;
 mod episodes;
 mod info;
+mod mylist;
 mod search;
 mod session;
 mod streams;
+pub use mylist::{action_result, parse_my_list, plan_watched, token, ListEntry, ListError, Step};
 pub use episodes::{parse_episode_list, parse_episode_pages, parse_episodes, Episode, EpisodeList, PageLink};
 pub use info::{parse_info, Info};
 pub use search::{parse_search, parse_search_page, SearchHit, SearchPage};
