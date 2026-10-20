@@ -1,6 +1,6 @@
 use crate::creds::CredStore;
 use proxer_client::{Client, Error};
-use proxer_parse::{parse_episodes, parse_info, parse_search, parse_streams, Episode, Info, SearchHit, Stream};
+use proxer_parse::{parse_episode_list, parse_info, parse_search_page, parse_streams, EpisodeList, Info, SearchPage, Stream};
 use std::sync::Arc;
 use tauri::State;
 
@@ -47,10 +47,11 @@ pub async fn logout(app: State<'_, App>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn search(app: State<'_, App>, query: String) -> Result<Vec<SearchHit>, String> {
+pub async fn search(app: State<'_, App>, query: String, page: Option<u32>) -> Result<SearchPage, String> {
     let q: String = url_encode(&query);
-    let html = app.client.get(&format!("/search?s=search&name={q}&typ=all-anime")).await.map_err(err)?;
-    Ok(parse_search(&html))
+    let p = page.unwrap_or(1).max(1); // the site counts pages from 1
+    let html = app.client.get(&format!("/search?s=search&name={q}&typ=all-anime&p={p}")).await.map_err(err)?;
+    Ok(parse_search_page(&html))
 }
 
 #[tauri::command]
@@ -59,8 +60,9 @@ pub async fn get_info(app: State<'_, App>, id: u32) -> Result<Info, String> {
 }
 
 #[tauri::command]
-pub async fn get_episodes(app: State<'_, App>, id: u32) -> Result<Vec<Episode>, String> {
-    Ok(parse_episodes(&app.client.get(&format!("/info/{id}/list")).await.map_err(err)?, id))
+pub async fn get_episodes(app: State<'_, App>, id: u32, page: Option<u32>) -> Result<EpisodeList, String> {
+    let p = page.unwrap_or(1).max(1); // 50 episodes per page
+    Ok(parse_episode_list(&app.client.get(&format!("/info/{id}/list/{p}")).await.map_err(err)?, id))
 }
 
 #[tauri::command]
