@@ -59,7 +59,7 @@
   onDestroy(() => {
     alive = false;
     const a = document.activeElement; // only if focus was in the player (or lost), not when the user picked another tile
-    if (opener?.isConnected && (a === document.body || !a || section?.contains(a))) opener.focus({ preventScroll: true });
+    if (opener?.isConnected && (a === document.body || !a || section?.contains(a))) opener.focus();
     setDpadRoot(null);
     setFullscreenMode(false);
     setSeekMode(false);
