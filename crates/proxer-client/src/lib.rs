@@ -18,6 +18,7 @@ pub enum Error {
 
 pub struct Client {
     http: std::sync::RwLock<reqwest::Client>,
+    embed_http: reqwest::Client, // anonymous: no cookies, no redirects
     base: String,
     creds: Mutex<Option<(String, String)>>,
     relogin: Mutex<()>, // single-flight re-login; taken before any semaphore permit
@@ -28,6 +29,12 @@ impl Client {
     pub fn new(base: &str) -> Self {
         Self {
             http: std::sync::RwLock::new(Self::build_http()),
+            embed_http: reqwest::Client::builder()
+                .user_agent(UA)
+                .redirect(reqwest::redirect::Policy::none())
+                .timeout(std::time::Duration::from_secs(20))
+                .build()
+                .expect("embed http client"),
             base: base.trim_end_matches('/').to_string(),
             creds: Mutex::new(None),
             relogin: Mutex::new(()),
@@ -89,6 +96,17 @@ impl Client {
         Ok(res.text().await?)
     }
 
+    /// GET an embed page anonymously. Only `https://*.proxer.me` is allowed and redirects are not followed.
+    pub async fn get_embed(&self, url: &str) -> Result<String, Error> {
+        if !is_allowed_embed_url(url) {
+            return Err(Error::Parse("embed host not allowed"));
+        }
+        let _p = self.gate.acquire().await.expect("semaphore");
+        let res = self.embed_http.get(url).send().await?;
+        check_status(res.status())?;
+        Ok(res.text().await?)
+    }
+
     /// GET a page; if it comes back logged out, log in again once and retry once.
     pub async fn get(&self, path: &str) -> Result<String, Error> {
         let body = self.fetch(path).await?;
@@ -119,4 +137,10 @@ impl Client {
 
 fn check_status(s: reqwest::StatusCode) -> Result<(), Error> {
     if s.is_server_error() || s.as_u16() == 429 { Err(Error::Http(s.as_u16())) } else { Ok(()) }
+}
+
+/// `https://` and a host that ends in `.proxer.me` (the bare domain and look-alikes like `evilproxer.me` are refused).
+pub fn is_allowed_embed_url(url: &str) -> bool {
+    let Ok(u) = reqwest::Url::parse(url) else { return false };
+    u.scheme() == "https" && u.host_str().is_some_and(|h| h.ends_with(".proxer.me"))
 }
