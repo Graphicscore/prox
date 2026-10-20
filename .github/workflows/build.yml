@@ -11,12 +11,19 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # CI speed: thin LTO and parallel codegen instead of the local fat-LTO/1-unit release profile (slightly bigger binaries).
+  CARGO_PROFILE_RELEASE_LTO: thin
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+  # The app compares its own version (0.1.<run number>) with the latest release tag (build-<run number>).
+  BUILD_VERSION: 0.1.${{ github.run_number }}
+
 jobs:
   test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 24, cache: npm }
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -30,8 +37,8 @@ jobs:
     needs: test
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 24, cache: npm }
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -40,10 +47,10 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libappindicator3-dev \
             librsvg2-dev patchelf libdbus-1-dev libssl-dev file
       - run: npm ci
-      - run: npm run tauri build -- --bundles deb,appimage
+      - run: npm run tauri build -- --config "{\"version\":\"$BUILD_VERSION\"}" --bundles deb,appimage
         env:
           APPIMAGE_EXTRACT_AND_RUN: 1 # linuxdeploy without FUSE on the runner
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: proxer-linux-${{ github.sha }}
           path: |
@@ -54,23 +61,38 @@ jobs:
   android:
     needs: test
     runs-on: ubuntu-22.04
+    strategy:
+      matrix: # one job per ABI, in parallel: arm64 for most phones/TVs, armv7 for older 32-bit TVs, x86_64 for emulators
+        include:
+          - { abi: aarch64, rust: aarch64-linux-android }
+          - { abi: armv7, rust: armv7-linux-androideabi }
+          - { abi: x86_64, rust: x86_64-linux-android }
     env:
       NDK_VERSION: 28.2.13676358
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 24, cache: npm }
-      - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: 21 }
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: 21, cache: gradle }
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+          targets: ${{ matrix.rust }}
       - uses: Swatinem/rust-cache@v2
+        with: { key: "android-${{ matrix.abi }}" }
+      - id: ndk
+        run: echo "dir=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4 # the NDK is ~1 GB: download it once per version
+        with:
+          path: ${{ steps.ndk.outputs.dir }}
+          key: ndk-${{ env.NDK_VERSION }}
       - name: Android NDK
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION"
-          echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+          if [ ! -d "${{ steps.ndk.outputs.dir }}" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+            "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION"
+          fi
+          echo "NDK_HOME=${{ steps.ndk.outputs.dir }}" >> "$GITHUB_ENV"
       - run: npm ci
       - name: Release signing key (repository secrets)
         env:
@@ -80,15 +102,42 @@ jobs:
           test -n "$KEYSTORE_B64" && test -n "$KEY_PASSWORD" || { echo "::error::ANDROID_KEYSTORE_BASE64 / ANDROID_KEY_PASSWORD secrets missing"; exit 1; }
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/proxer-release.jks"
           printf 'password=%s\nkeyAlias=proxer\nstoreFile=%s\n' "$KEY_PASSWORD" "$RUNNER_TEMP/proxer-release.jks" > src-tauri/gen/android/keystore.properties
-      # Release APKs signed with the fixed key, so new builds install over old ones. One APK per ABI:
-      # arm64 for most phones/TVs, armv7 for older 32-bit TVs, x86_64 for emulators.
-      - run: npm run tauri android build -- --apk --split-per-abi --target aarch64 armv7 x86_64
-      - name: Check signatures
+      # Release APK signed with the fixed key, so new builds install over old ones.
+      - run: npm run tauri android build -- --config "{\"version\":\"$BUILD_VERSION\"}" --apk --split-per-abi --target ${{ matrix.abi }}
+      - name: Check signature
         run: |
           BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
           for a in src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk; do "$BT/apksigner" verify "$a"; echo "signed: $a"; done # bash -e: an unsigned APK fails the job
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
-          name: proxer-android-${{ github.sha }}
+          name: proxer-android-${{ matrix.abi }}-${{ github.sha }}
           path: src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk
           if-no-files-found: error
+
+  # Public release with fixed asset names: the in-app updater downloads from here.
+  release:
+    needs: [linux, android]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with: { name: "proxer-linux-${{ github.sha }}", path: linux }
+      - uses: actions/download-artifact@v5
+        with: { pattern: "proxer-android-*-${{ github.sha }}", path: android, merge-multiple: true }
+      - name: Rename assets
+        run: |
+          mkdir out
+          one() { f=$(find "$1" -name "$2" | head -1); test -n "$f" || { echo "::error::missing $2"; exit 1; }; cp "$f" "out/$3"; }
+          one android 'app-arm64-release.apk' proxer-android-arm64.apk
+          one android 'app-arm-release.apk' proxer-android-armv7.apk
+          one android 'app-x86_64-release.apk' proxer-android-x86_64.apk
+          one linux '*.AppImage' proxer-linux-x86_64.AppImage
+          one linux '*.deb' proxer-linux-amd64.deb
+          ls -la out
+      - name: Publish release build-${{ github.run_number }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" out/* -R "${{ github.repository }}" --target "${{ github.sha }}" \
+            --title "Build ${{ github.run_number }}" --notes "Automatic build of ${{ github.sha }}. Version $BUILD_VERSION." --latest

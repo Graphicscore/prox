@@ -27,6 +27,8 @@ export function makeDemoApi(): Api {
     logout: async () => {},
     search: async (query: string): Promise<SearchPage> => ({ hits: HITS.filter((h) => h.title.toLowerCase().includes(query.toLowerCase()) || !query), has_next: false }),
     getList: async (kind: ListKind): Promise<SearchPage> => ({ hits: lists[kind], has_next: false }),
+    checkUpdate: async () => null,
+    downloadUpdate: async () => "",
     getCalendar: async (): Promise<CalendarEntry[]> => {
       const base = Math.floor(Date.now() / 3600000) * 3600; // this hour
       return HITS.slice(0, 8).map((h, i) => ({ id: h.id, title: h.title, episode: i + 1, lang: "engsub", air: base + i * 4 * 3600 }));

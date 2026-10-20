@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
-  import { api } from "./lib/api";
+  import { api, describeError } from "./lib/api";
   import Login from "./lib/Login.svelte";
   import Home from "./lib/Home.svelte";
   import Search from "./lib/Search.svelte";
@@ -9,6 +9,7 @@
   import Shell from "./lib/ui/Shell.svelte";
   import Loading from "./lib/ui/Loading.svelte";
   import Toasts from "./lib/ui/Toasts.svelte";
+  import { toast } from "./lib/toast.svelte";
   import { clearRecent } from "./lib/recent";
   import { exit, onBackButtonPress } from "@tauri-apps/api/app";
   import { currentTv } from "./lib/tv";
@@ -70,14 +71,34 @@
   };
   async function back() { screen = from; await tick(); if (returnFocus?.isConnected) returnFocus.focus(); }
   const auth = () => (screen = "login");
+  // Update button: check the latest GitHub release; download it and hand it to the installer (Android) or swap
+  // the AppImage and restart (Linux). Without a self-install path (deb, dev build) point to the release page.
+  let updating = $state(false);
+  async function update() {
+    if (updating) return;
+    updating = true;
+    try {
+      const u = await api.checkUpdate();
+      if (!u) { toast("You have the latest build"); return; }
+      if (!u.url) { toast(`Build ${u.build} is available: ${u.page}`, 8000); return; }
+      toast(`Downloading build ${u.build}…`);
+      const path = await api.downloadUpdate(u.url);
+      const bridge = (window as unknown as { AndroidTv?: { installUpdate?: (p: string) => string } }).AndroidTv;
+      if (!path || !bridge?.installUpdate) return; // Linux: the app restarts itself
+      const r = bridge.installUpdate(path);
+      if (r === "permission") toast("Allow \"Install unknown apps\" for Proxer, then press update again", 8000);
+      else if (r !== "started") toast(`Update could not be installed (${r})`, 6000);
+    } catch (x) { toast(describeError(x), 6000); }
+    finally { updating = false; }
+  }
 </script>
 
 {#if screen === "boot"}
   <Loading full label="Signing in…" />
 {:else if screen === "login"}
-  <Login onok={(w) => { warning = w ?? ""; screen = "home"; }} />
+  <Login onok={(w) => { warning = w ?? ""; screen = "home"; }} onupdate={update} {updating} />
 {:else}
-  <Shell tab={screen === "info" ? null : screen} onnav={(t) => (screen = t)} onlogout={logout}>
+  <Shell tab={screen === "info" ? null : screen} onnav={(t) => (screen = t)} onlogout={logout} onupdate={update} {updating}>
     {#if warning}<p role="status" class="warn">{warning}</p>{/if}
     {#if seen.home}<div class="view" hidden={screen !== "home"}><Home active={screen === "home"} onopen={open} onauth={auth} /></div>{/if}
     {#if seen.search}<div class="view" hidden={screen !== "search"}><Search onopen={open} onauth={auth} /></div>{/if}
