@@ -4,7 +4,9 @@ pub trait CredStore: Send + Sync {
     fn clear(&self);
 }
 
+#[cfg_attr(target_os = "android", allow(dead_code))]
 pub struct KeyringStore;
+#[cfg_attr(target_os = "android", allow(dead_code))]
 const SERVICE: &str = "me.louven.proxer";
 
 impl CredStore for KeyringStore {

@@ -8,8 +8,13 @@ Agents cannot log in to Proxer or play video; the human does these. Screenshots 
 source scripts/android-env.sh
 emulator -avd Television_4K            # with a window; keyboard arrows = D-pad, Enter = center, Esc/Backspace = Back
 emulator -avd Pixel_10_Pro_XL          # phone (only one emulator at a time)
-adb install -r src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk   # TV (i686)
-adb install -r /tmp/claude-1000/x86_64.apk                                                          # phone (x86_64)
+# Build + copy each APK to a named file (both targets write the same path; see docs/android-setup.md)
+npm run tauri android build -- --debug --apk --target i686     # TV
+cp src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk proxer-tv-x86.apk
+npm run tauri android build -- --debug --apk --target x86_64   # phone
+cp src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk proxer-phone-x86_64.apk
+adb install -r proxer-tv-x86.apk          # TV
+adb install -r proxer-phone-x86_64.apk    # phone
 adb shell monkey -p me.louven.proxer -c android.intent.category.LEANBACK_LAUNCHER 1   # TV launch
 adb shell monkey -p me.louven.proxer -c android.intent.category.LAUNCHER 1            # phone launch
 adb logcat | grep -i -E 'chromium|RustStdoutStderr|FATAL'
@@ -21,7 +26,8 @@ Headless (what the agent used): add `-no-window -no-audio -gpu swiftshader_indir
 
 - [ ] TV: log in with "Remember me" ticked, force-stop (`adb shell am force-stop me.louven.proxer`), relaunch: the login form is skipped (Android file store).
 - [ ] TV, D-pad only: login (Up/Down between username, password, checkbox, Log in; Center activates) -> search -> info -> player. Focus ring visible at every step.
-- [ ] Note: focusing a text field opens the soft keyboard, and D-pad then moves inside the keyboard; Back hides it first. Decide whether that is acceptable (typing on a TV needs it anyway).
+- [ ] TV text fields: D-pad focus does NOT open the soft keyboard; Enter/Select on the field opens it; Back hides it and D-pad navigation works again. Submitting an empty username/password shows "Enter your username and password".
+- [ ] D-pad reaches Fullscreen: Left/Right move focus along the player bar (Close player <-> Fullscreen), also during "Loading..." and in the embedded player; with the video focused Left/Right seek.
 - [ ] Back: closes fullscreen, then the player, then Info, then (on the login/home screen) exits the app.
 - [ ] Playback of a normal stream and of an airing stream. Enter toggles play/pause; seek keys work.
 - [ ] Fullscreen button works.
@@ -33,8 +39,8 @@ Headless (what the agent used): add `-no-window -no-audio -gpu swiftshader_indir
   }
   ```
   Rebuild, reinstall, note the result here. If the WebView cannot play the MP4 at all: that is the trigger for the media proxy (spec); stop.
-- [ ] TV class: on a real TV (no touchscreen) the `tv` class should give 24px text and 5vh/5vw margin. The stock emulator advertises a touchscreen, so it does NOT apply there; force with `?tv=1` or localStorage `tv=1` to inspect.
-- [ ] Phone: touch targets are comfortably tappable (44 px), nothing overlaps the status bar (see Results).
+- [ ] TV class: the native `AndroidTv.isTv()` check (UiModeManager) applies the `tv` class (24px text, 5vh/5vw margin) on the TV emulator and real TVs even though the emulator advertises a touchscreen; it must NOT apply on the phone.
+- [ ] Phone: touch targets are comfortably tappable (44 px), nothing overlaps the status bar, and the soft keyboard does not cover the focused input (ime inset).
 
 ## Results (agent run)
 
@@ -59,3 +65,4 @@ Final tested emulator command: `emulator -avd <name> -no-window -no-audio -gpu s
 - Phone (`Pixel_10_Pro_XL`): window-insets listener pads the content view; `t7-phone-login.png` shows the status bar above the page and the "Proxer" heading fully visible.
 - Logcat both: 0 `FATAL EXCEPTION`, no CSP/"Refused to", no panics. Both emulators shut down (`adb devices` empty, no qemu).
 - Note: the phone AVD was nearly out of storage; the old app was uninstalled before installing the new APK.
+- Manifest: the built APK's merged manifest sets `android:allowBackup="false"` and `android:dataExtractionRules` (`aapt2 dump xmltree --file AndroidManifest.xml <apk>`).

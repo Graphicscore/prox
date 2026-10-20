@@ -3,7 +3,10 @@
   let { onok }: { onok: (warning?: string) => void } = $props();
   let username = $state(""), password = $state(""), remember = $state(true), error = $state(""), busy = $state(false);
   async function submit(e: Event) {
-    e.preventDefault(); busy = true; error = "";
+    e.preventDefault();
+    // TV input lock makes fields read-only, which skips `required`: check explicitly.
+    if (!username.trim() || !password) { error = "Enter your username and password"; return; }
+    busy = true; error = "";
     try {
       const saved = await api.login(username, password, remember);
       onok(remember && !saved ? "Logged in, but your password could not be saved to the system keychain" : undefined);
