@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The saved password lives in the app data dir (Tauri app_data_dir = Context.getDataDir(), domain "root"). Never back it up or transfer it. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+    </device-transfer>
+</data-extraction-rules>
