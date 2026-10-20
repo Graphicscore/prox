@@ -23,3 +23,12 @@
   {#if error}<p role="alert">{error}</p>{/if}
   <button disabled={busy}>Log in</button>
 </form>
+
+<style>
+  form { padding: 5vh var(--pad); max-width: 28rem; }
+  h1 { margin-bottom: 1rem; }
+  label { margin: 0.75rem 0; }
+  label input:not([type="checkbox"]) { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; }
+  [role="alert"] { color: var(--bad); margin: 0.75rem 0; }
+  button { margin-top: 0.5rem; }
+</style>

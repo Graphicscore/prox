@@ -47,8 +47,9 @@
     const first = episodesWith(episodes, l)[0];
     if (first === undefined) return;
     await pick(first, l);
+    if (selected?.ep !== first || selected.lang !== l) return; // user picked another tile meanwhile
     const s = streams.find((x) => streamLabel(x) !== "Unsupported");
-    if (s) playing = s;
+    if (s) playing = s; else if (!error) error = "No playable stream for episode " + first;
   }
   const meta = $derived([info?.fields["Status"], info?.fields["Genre"]].filter(Boolean).join(" · "));
 </script>
