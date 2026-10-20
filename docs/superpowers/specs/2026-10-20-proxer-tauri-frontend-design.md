@@ -15,6 +15,7 @@ An unofficial third-party frontend for https://proxer.me/ as a Tauri v2 app for 
 - `/info/<id>` and `/watch/<id>/<ep>/<lang>` require a logged-in session. Anonymous requests return a 404 page or an empty stub.
 - Info page: server-rendered HTML, details table (titles, genres, season, status, adaptation). Parseable with selectors.
 - Watch page: inline `var streams = [...]` JSON. Entry keys: `id, code, type, htype, name, replace, img, parts, ssl, text, legal, public, points, uploader, username, tid, tname`. Only `type: "proxer-stream"` observed; its embed URL template is `https://stream.proxer.me/embed-#-728x504.html`.
+- **Two stream types (user requirement, 2026-10-20):** normal streams have `type: "proxer-stream"` (name "Proxer-Stream"); airing streams, used for currently airing anime such as `/info/59782`, have `type: "ps-test"` (name "Proxer-Stream Airing"). Both are `htype: "iframe"` with the same keys. Airing episodes are listed at `/info/<id>/list` as `/watch/<id>/<n>/<lang>` links; an episode can have an empty streams array. The resolver must support both types, and the UI labels each stream Normal or Airing. The airing embed internals are unverified (see the airing embed probe task).
 - **Not verified:** embed internals (direct media URL extractable? token or expiry protection? framing allowed?), episode list markup, other hoster types, rate limiting behaviour, TV WebView codec support.
 
 ## Architecture
@@ -68,7 +69,7 @@ Strategy chain, tried in order:
 
 Playback: webview plays the proxied URL. HLS via `hls.js` where the WebView lacks native HLS, MP4 natively. Plain `<video>` with custom controls: language and stream picker, subtitles if provided. Remote keys: Enter play/pause, Left/Right seek 10 s, Back exits the player.
 
-v1 supports `proxer-stream` plus the iframe fallback. Other hoster types show as unsupported until observed in practice.
+v1 supports `proxer-stream` (normal) and `ps-test` (airing) plus the iframe fallback; the airing path depends on the airing embed probe. Other hoster types show as unsupported until observed in practice.
 
 Decision point after implementation task 1 (embed probe): if the embed is directly extractable, build the full chain. If it is protected, v1 ships with the iframe fallback on desktop and mobile, and TV uses open-externally. Do not reverse-engineer a protection.
 

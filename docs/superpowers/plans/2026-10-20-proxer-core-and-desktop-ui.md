@@ -21,7 +21,7 @@
 - Errors are typed (`NotLoggedIn`, `BadCredentials`, `Parse`, `Network`); no string-matching on messages.
 - Deliberate simplification vs the spec: the cookie jar is in-memory only. The app re-logs-in at start from stored credentials. (`ponytail:` upgrade to a persisted jar only if login becomes rate-limited.)
 
-**User decisions (already made):** "I want it as an Tauri app"; platforms "3" (desktop + Android + Android TV); "it should have a login form and save username password"; spec approved ("looks goof").
+**User decisions (already made):** "I want it as an Tauri app"; platforms "3" (desktop + Android + Android TV); "it should have a login form and save username password"; spec approved ("looks goof"); "make sure to incorperate both different types of proxer streams, there is normal and there is airing" (airing example: https://proxer.me/info/59782/details). Normal streams have `type: "proxer-stream"`; airing streams have `type: "ps-test"`, name "Proxer-Stream Airing"; both `htype: "iframe"`; airing episodes are listed at `/info/<id>/list`.
 
 ---
 
@@ -61,6 +61,33 @@ Expected: record status and headers; repeat without the Referer to see whether i
 
 ```bash
 git add docs fixtures && git commit -m "docs: embed probe findings"
+```
+
+---
+
+### Task 0b: Airing embed probe (spike, decides Plan 2's airing path)
+
+**Goal:** Learn whether the airing stream (`type: "ps-test"`) embed exposes a directly extractable media URL, like the normal stream, and whether its embed differs (host, player, tokens, framing).
+
+**Files:**
+- Create: `docs/superpowers/specs/2026-10-20-airing-embed-probe-findings.md`
+- Create: `fixtures/embed-ps-test.html` (scrubbed; query strings and tokens replaced with `<redacted>`)
+
+**Acceptance Criteria:**
+- [ ] Findings doc states, for one airing episode of `https://proxer.me/info/59782` (episode list at `/info/59782/list`): the embed host, whether the page has a `<source>`/m3u8/mp4 URL, whether the URL carries a token or expiry, whether the embed can be framed (`X-Frame-Options`/CSP), and required request headers.
+- [ ] Findings doc ends with one line: `DECISION: direct-extraction` or `DECISION: iframe-only` for airing streams.
+- [ ] Fixture contains no cookies, usernames, tokens, or query strings.
+
+**Verify:** `grep -E '^DECISION: (direct-extraction|iframe-only)$' docs/superpowers/specs/2026-10-20-airing-embed-probe-findings.md` → one matching line
+
+**Steps:**
+
+- [ ] **Step 1: Get an airing embed URL** in the logged-in Chrome: fetch `/info/59782/list`, take the first `/watch/59782/<n>/engsub` link, fetch it, read `var streams`, and build `replace.replace('#', code)` for the entry with `type` `ps-test`. Print only the host and the path with long ids masked.
+- [ ] **Step 2: Inspect the embed** as in Task 0 (headers and `<source>` or `.m3u8`/`.mp4`, packed JS, query-string tokens). Note differences from the normal `proxer-stream` embed.
+- [ ] **Step 3: Write the findings doc with its `DECISION:` line, save the scrubbed embed HTML, commit.**
+
+```bash
+git add docs fixtures && git commit -m "docs: airing embed probe findings"
 ```
 
 ---
@@ -256,21 +283,23 @@ git add -A && git commit -m "feat(parse): search results parser with fixture tes
 
 ---
 
-### Task 3: proxer-parse: info page, streams JSON, login helpers
+### Task 3: proxer-parse: info, streams (normal + airing), episodes, login helpers
 
-**Goal:** `parse_info`, `parse_streams`, `login_action`, `is_logged_in` in `proxer-parse`.
+**Goal:** `parse_info`, `parse_streams` (with `Stream::stream_kind()` distinguishing Normal and Airing), `parse_episodes`, `login_action`, `is_logged_in` in `proxer-parse`.
 
 **Files:**
-- Create: `crates/proxer-parse/src/{info.rs,streams.rs,session.rs}`
+- Create: `crates/proxer-parse/src/{info.rs,streams.rs,episodes.rs,session.rs}`
 - Modify: `crates/proxer-parse/src/lib.rs`
 - Create: `fixtures/info-45.html`, `fixtures/watch-45-1.html` (saved from the logged-in browser via Save Page / `copy(document.documentElement.outerHTML)`, then scrubbed of username and cookies)
 - Create: `fixtures/home-anon.html` (anonymous `curl https://proxer.me/`)
-- Test: `crates/proxer-parse/tests/{info.rs,streams.rs,session.rs}`
+- Test: `crates/proxer-parse/tests/{info.rs,streams.rs,episodes.rs,session.rs}`
 
 **Acceptance Criteria:**
 - [ ] `parse_info(info-45)` gives `title == "Naruto"` and `fields["Status"] == "Abgeschlossen"`.
 - [ ] `parse_streams(watch-45-1)` returns at least one stream with `kind == "proxer-stream"` and `replace == "https://stream.proxer.me/embed-#-728x504.html"`.
 - [ ] `parse_streams` on a page without a `streams` variable returns `Err(ParseError::NoStreams)`.
+- [ ] A stream with `type: "proxer-stream"` has `stream_kind() == StreamKind::Normal`; `type: "ps-test"` gives `StreamKind::Airing`; any other type gives `StreamKind::Other`.
+- [ ] `parse_episodes(html, 59782)` on a list page containing links `/watch/59782/1/engsub`, `/watch/59782/2/engsub`, `/watch/59782/2/gersub` returns episode 1 with langs `["engsub"]` and episode 2 with langs `["engsub","gersub"]`, sorted by number; a page with no matching links returns an empty `Vec`.
 - [ ] `login_action(home-anon)` returns a path starting with `/login?`; `is_logged_in(home-anon) == false`; `is_logged_in(info-45) == true`.
 
 **Verify:** `cargo test -p proxer-parse` → all tests pass
@@ -296,7 +325,7 @@ fn parses_info_fixture() {
 
 `crates/proxer-parse/tests/streams.rs`:
 ```rust
-use proxer_parse::{parse_streams, ParseError};
+use proxer_parse::{parse_streams, ParseError, StreamKind};
 
 #[test]
 fn parses_streams_fixture() {
@@ -309,6 +338,49 @@ fn parses_streams_fixture() {
 #[test]
 fn missing_streams_is_error() {
     assert!(matches!(parse_streams("<html></html>"), Err(ParseError::NoStreams)));
+}
+
+fn page(kind: &str, name: &str) -> String {
+    format!(r#"<script>var streams = [{{"id":"1","code":"abc","type":"{kind}","htype":"iframe","name":"{name}","replace":"https://example.test/embed-#-728x504.html"}}];</script>"#)
+}
+
+#[test]
+fn normal_and_airing_kinds() {
+    let n = parse_streams(&page("proxer-stream", "Proxer-Stream")).unwrap();
+    let a = parse_streams(&page("ps-test", "Proxer-Stream Airing")).unwrap();
+    let o = parse_streams(&page("something-else", "X")).unwrap();
+    assert_eq!(n[0].stream_kind(), StreamKind::Normal);
+    assert_eq!(a[0].stream_kind(), StreamKind::Airing);
+    assert_eq!(o[0].stream_kind(), StreamKind::Other);
+}
+
+#[test]
+fn empty_streams_array_is_ok() {
+    let s = parse_streams("<script>var streams = [];</script>").unwrap();
+    assert!(s.is_empty());
+}
+```
+
+`crates/proxer-parse/tests/episodes.rs`:
+```rust
+use proxer_parse::{parse_episodes, Episode};
+
+#[test]
+fn groups_languages_per_episode() {
+    let html = r#"<a href="/watch/59782/2/gersub">x</a><a href="/watch/59782/1/engsub">x</a>
+                  <a href="/watch/59782/2/engsub">x</a><a href="/watch/99/1/engsub">other anime</a>"#;
+    assert_eq!(
+        parse_episodes(html, 59782),
+        vec![
+            Episode { number: 1, langs: vec!["engsub".into()] },
+            Episode { number: 2, langs: vec!["engsub".into(), "gersub".into()] },
+        ]
+    );
+}
+
+#[test]
+fn no_links_is_empty() {
+    assert!(parse_episodes("<html></html>", 1).is_empty());
 }
 ```
 
@@ -400,10 +472,53 @@ pub struct Stream {
     pub replace: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum StreamKind {
+    /// `proxer-stream`: finished anime hosted by Proxer.
+    Normal,
+    /// `ps-test` ("Proxer-Stream Airing"): currently airing anime.
+    Airing,
+    Other,
+}
+
+impl Stream {
+    pub fn stream_kind(&self) -> StreamKind {
+        match self.kind.as_str() {
+            "proxer-stream" => StreamKind::Normal,
+            "ps-test" => StreamKind::Airing,
+            _ => StreamKind::Other,
+        }
+    }
+}
+
 pub fn parse_streams(html: &str) -> Result<Vec<Stream>, ParseError> {
     let re = Regex::new(r"var\s+streams\s*=\s*(\[[\s\S]*?\]);").unwrap();
     let caps = re.captures(html).ok_or(ParseError::NoStreams)?;
     Ok(serde_json::from_str(&caps[1])?)
+}
+```
+
+`episodes.rs` (episode links live on `/info/<id>/list`, shaped `/watch/<id>/<n>/<lang>`):
+```rust
+use regex::Regex;
+use serde::Serialize;
+use std::collections::{BTreeMap, BTreeSet};
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Episode {
+    pub number: u32,
+    pub langs: Vec<String>,
+}
+
+pub fn parse_episodes(html: &str, id: u32) -> Vec<Episode> {
+    let re = Regex::new(&format!(r"/watch/{id}/(\d+)/([a-z]+)")).unwrap();
+    let mut by_ep: BTreeMap<u32, BTreeSet<String>> = BTreeMap::new();
+    for c in re.captures_iter(html) {
+        if let Ok(n) = c[1].parse() {
+            by_ep.entry(n).or_default().insert(c[2].to_string());
+        }
+    }
+    by_ep.into_iter().map(|(number, langs)| Episode { number, langs: langs.into_iter().collect() }).collect()
 }
 ```
 
@@ -425,14 +540,16 @@ pub fn is_logged_in(html: &str) -> bool {
 - [ ] **Step 6: Export from `lib.rs`, run, fix selectors against the fixtures, commit.**
 
 ```rust
+mod episodes;
 mod info;
 mod search;
 mod session;
 mod streams;
+pub use episodes::{parse_episodes, Episode};
 pub use info::{parse_info, Info};
 pub use search::{parse_search, SearchHit};
 pub use session::{is_logged_in, login_action};
-pub use streams::{parse_streams, ParseError, Stream};
+pub use streams::{parse_streams, ParseError, Stream, StreamKind};
 ```
 
 Run: `cargo test -p proxer-parse`
@@ -612,7 +729,7 @@ git add -A && git commit -m "feat(client): login, fetch, auto re-login"
 
 ### Task 5: Tauri commands and credential store
 
-**Goal:** Commands `login`, `logout`, `auto_login`, `search`, `get_info`, `get_streams`, with credentials in the OS keychain.
+**Goal:** Commands `login`, `logout`, `auto_login`, `search`, `get_info`, `get_episodes`, `get_streams`, with credentials in the OS keychain.
 
 **Files:**
 - Modify: `src-tauri/Cargo.toml`, `src-tauri/src/lib.rs`
@@ -700,7 +817,7 @@ Expected: PASS for `round_trip` (it should fail first only if the file is missin
 ```rust
 use crate::creds::CredStore;
 use proxer_client::{Client, Error};
-use proxer_parse::{parse_info, parse_search, parse_streams, Info, SearchHit, Stream};
+use proxer_parse::{parse_episodes, parse_info, parse_search, parse_streams, Episode, Info, SearchHit, Stream};
 use std::sync::Arc;
 use tauri::State;
 
@@ -755,6 +872,11 @@ pub async fn get_info(app: State<'_, App>, id: u32) -> Result<Info, String> {
 }
 
 #[tauri::command]
+pub async fn get_episodes(app: State<'_, App>, id: u32) -> Result<Vec<Episode>, String> {
+    Ok(parse_episodes(&app.client.get(&format!("/info/{id}/list")).await.map_err(err)?, id))
+}
+
+#[tauri::command]
 pub async fn get_streams(app: State<'_, App>, id: u32, episode: u32, lang: String) -> Result<Vec<Stream>, String> {
     let lang: String = lang.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
     let html = app.client.get(&format!("/watch/{id}/{episode}/{lang}")).await.map_err(err)?;
@@ -786,7 +908,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::login, commands::auto_login, commands::logout,
-            commands::search, commands::get_info, commands::get_streams
+            commands::search, commands::get_info, commands::get_episodes, commands::get_streams
         ])
         .run(tauri::generate_context!())
         .expect("tauri run");
@@ -816,7 +938,7 @@ git add -A && git commit -m "feat(app): tauri commands and keychain credential s
 - [ ] On first start the Login form shows; after logging in with "remember me" checked, restarting the app skips the form.
 - [ ] Wrong credentials show "Wrong username or password" and stay on the form.
 - [ ] Searching `naruto` lists rows including `NARUTO外伝 七代目火影と緋色の花つ月`.
-- [ ] Opening a hit shows its title, Status field, and (for an anime) its streams as names; a `NotLoggedIn` error returns to the Login screen.
+- [ ] Opening a hit shows its title, Status field, and an episode list; picking an episode+language lists its streams, each labelled Normal (`proxer-stream`) or Airing (`ps-test`). Opening an airing anime (`/info/59782`, Tensei shitara Ken deshita 2) shows its airing streams, and an episode without streams shows "No streams (yet)". A `NotLoggedIn` error returns to the Login screen.
 - [ ] "Log out" clears saved credentials (next start shows the form).
 
 **Verify:** `npm run build && npm run check` → exit 0; then manual run `npm run tauri dev` and walk the acceptance list
@@ -831,6 +953,8 @@ import { invoke } from "@tauri-apps/api/core";
 export type SearchHit = { id: number; title: string; genres: string[]; kind: string; rating: number | null };
 export type Info = { title: string; fields: Record<string, string> };
 export type Stream = { code: string; type: string; name: string; replace: string };
+export type Episode = { number: number; langs: string[] };
+export const isAiring = (s: Stream) => s.type === "ps-test";
 
 export const api = {
   login: (username: string, password: string, remember: boolean) => invoke<void>("login", { username, password, remember }),
@@ -838,6 +962,7 @@ export const api = {
   logout: () => invoke<void>("logout"),
   search: (query: string) => invoke<SearchHit[]>("search", { query }),
   info: (id: number) => invoke<Info>("get_info", { id }),
+  episodes: (id: number) => invoke<Episode[]>("get_episodes", { id }),
   streams: (id: number, episode: number, lang: string) => invoke<Stream[]>("get_streams", { id, episode, lang }),
 };
 ```
@@ -891,20 +1016,23 @@ export const api = {
 </ul>
 ```
 
-`Info.svelte`:
+`Info.svelte` (episode picker; each stream is labelled Normal or Airing):
 ```svelte
 <script lang="ts">
-  import { api, type Info, type Stream } from "./api";
+  import { api, isAiring, type Info, type Episode, type Stream } from "./api";
   let { id, onback, onauth }: { id: number; onback: () => void; onauth: () => void } = $props();
-  let info = $state<Info | null>(null), streams = $state<Stream[]>([]), error = $state("");
+  let info = $state<Info | null>(null), episodes = $state<Episode[]>([]), streams = $state<Stream[]>([]);
+  let selected = $state<{ ep: number; lang: string } | null>(null), error = $state("");
+  function fail(x: unknown) { x === "NotLoggedIn" ? onauth() : (error = "Could not load"); }
   $effect(() => {
     (async () => {
-      try {
-        info = await api.info(id);
-        streams = await api.streams(id, 1, "engsub").catch(() => []);
-      } catch (x) { x === "NotLoggedIn" ? onauth() : (error = "Could not load"); }
+      try { info = await api.info(id); episodes = await api.episodes(id); } catch (x) { fail(x); }
     })();
   });
+  async function pick(ep: number, lang: string) {
+    selected = { ep, lang }; streams = [];
+    try { streams = await api.streams(id, ep, lang); } catch (x) { x === "Parse:streams" ? (streams = []) : fail(x); }
+  }
 </script>
 
 <button onclick={onback}>Back</button>
@@ -912,8 +1040,18 @@ export const api = {
 {#if info}
   <h2>{info.title}</h2>
   <p>Status: {info.fields["Status"] ?? "–"}</p>
-  <h3>Episode 1 streams</h3>
-  <ul>{#each streams as s}<li>{s.name} ({s.type})</li>{:else}<li>No streams</li>{/each}</ul>
+  <h3>Episodes</h3>
+  <ul>
+    {#each episodes as e}
+      <li>{e.number}: {#each e.langs as l}<button onclick={() => pick(e.number, l)}>{l}</button> {/each}</li>
+    {:else}<li>No episodes</li>{/each}
+  </ul>
+  {#if selected}
+    <h3>Streams for episode {selected.ep} ({selected.lang})</h3>
+    <ul>
+      {#each streams as s}<li>{s.name} <small>[{isAiring(s) ? "Airing" : "Normal"}]</small></li>{:else}<li>No streams (yet)</li>{/each}
+    </ul>
+  {/if}
 {/if}
 ```
 
