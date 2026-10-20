@@ -39,7 +39,7 @@
     if (n && !near && document.activeElement === video) tick().then(() => nextBtn?.focus());
     near = n;
   }
-  function goNext() { if (near) onwatched(); onnext(); }
+  function goNext() { if (near && !frame) onwatched(); onnext(); }
   function onended() { onwatched(); if (hasNext) onnext(); }
   function onVideoError() {
     if (!retried) { retried = true; focusedVideo = false; at = video?.currentTime ?? 0; src = null; resolve(); } // airing URLs expire: scrape again once

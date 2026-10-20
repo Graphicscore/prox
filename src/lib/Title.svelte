@@ -76,15 +76,15 @@
   const hasNext = $derived(!!selected && nextEpisode(episodes, selected.lang, selected.ep, pages, epPage) !== null);
   /** Next episode in the same language, first playable stream; keeps the Player instance (fullscreen stays). */
   async function playNext() {
-    const cur = selected;
+    const cur = selected, cid = id;
     if (!cur || !playing) return;
     let n = nextEpisode(episodes, cur.lang, cur.ep, pages, epPage);
-    if (n && "page" in n) { await loadPage(n.page); n = nextEpisode(episodes, cur.lang, 0, pages, epPage); }
-    if (!n || !("ep" in n) || selected !== cur) return;
+    if (n && "page" in n) { await loadPage(n.page); if (cid !== id || epPage !== n.page) return; n = nextEpisode(episodes, cur.lang, 0, pages, epPage); }
+    if (!n || !("ep" in n) || selected !== cur || cid !== id) return;
     const ep = n.ep;
     try {
       const r = await api.streams(id, ep, cur.lang);
-      if (selected !== cur) return; // user picked something else meanwhile
+      if (selected !== cur || cid !== id) return; // user picked something else meanwhile
       const s = r.find((x) => streamLabel(x) !== "Unsupported");
       if (!s) { error = "No playable stream for episode " + ep; return; }
       selected = { ep, lang: cur.lang }; streams = r; playing = s;
