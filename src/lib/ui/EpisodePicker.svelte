@@ -1,6 +1,6 @@
 <script lang="ts">
   import { streamLabel, type Episode, type PageLink, type Stream } from "../api";
-  import { activeLang, episodesWith, languagesOf } from "./helpers";
+  import { activeLang, episodesWith, languagesOf, pageWindow } from "./helpers";
   let { episodes, pages, epPage, selected, streams, onpage, onpick, onplay, onreminder, lang = $bindable("") }: {
     episodes: Episode[]; pages: PageLink[]; epPage: number; selected: { ep: number; lang: string } | null; streams: Stream[];
     onpage: (p: number) => void; onpick: (ep: number, lang: string) => void; onplay: (s: Stream) => void; onreminder: (which: "this" | "next") => void; lang?: string;
@@ -18,8 +18,9 @@
     {/each}
     {#if pages.length > 1}
       <span class="sep"></span>
-      {#each pages as p (p.page)}
-        <button class="chip" aria-current={p.page === epPage ? "page" : undefined} onclick={() => p.page !== epPage && onpage(p.page)}>{p.label}</button>
+      {#each pageWindow(pages, epPage) as p, i (p ? p.page : "gap" + i)}
+        {#if !p}<span class="gap">…</span>{:else}
+        <button class="chip" aria-current={p.page === epPage ? "page" : undefined} onclick={() => p.page !== epPage && onpage(p.page)}>{p.label}</button>{/if}
       {/each}
     {/if}
   </div>
@@ -48,6 +49,7 @@
   h2 { font-size: 1.05rem; color: var(--text-hi); margin-right: 6px; }
   h3 { font-size: 0.95rem; color: var(--text-hi); margin: 18px 0 8px; }
   .sep { width: 12px; }
+  .gap { color: var(--muted); padding: 0 2px; }
   .chip[aria-pressed="true"], .chip[aria-current="page"] { background: var(--accent); color: #fff; }
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(4.2rem, 1fr)); gap: 8px; }
   .tile { border-radius: 6px; padding: 0.7em 0; }

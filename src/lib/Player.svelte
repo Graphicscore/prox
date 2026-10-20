@@ -2,6 +2,7 @@
   import { onDestroy, onMount, tick, untrack } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { pushBack } from "./back";
+  import { currentTv } from "./tv";
   import { nearEnd } from "./ui/helpers";
   import { setDpadRoot, setFullscreenMode, setSeekMode } from "./dpad";
   import { api, describeError, safeEmbedUrl, streamLabel, type MediaSource, type Stream } from "./api";
@@ -10,6 +11,7 @@
   } = $props();
   let near = $state(false), nextBtn = $state<HTMLButtonElement | null>(null);
   let src = $state<MediaSource | null>(null), error = $state(""), frame = $state(false), full = $state(false);
+  const tv = currentTv(); // TV: the player opens fullscreen and Back closes it (an inline player sits below the fold there)
   let video = $state<HTMLVideoElement | null>(null);
   let section = $state<HTMLElement | null>(null), closeBtn = $state<HTMLButtonElement | null>(null);
   let retried = false, focusedVideo = false, alive = true, at = 0, going = false, started = false;
@@ -37,7 +39,7 @@
     if (!video) return;
     const n = nearEnd(video.currentTime, video.duration);
     if (n && !near && document.activeElement === video) tick().then(() => nextBtn?.focus());
-    if (!n && near && document.activeElement === nextBtn) video.focus(); // seeked back: the pop-up goes, focus must not
+    if (!n && near && document.activeElement === nextBtn) video.focus({ preventScroll: true }); // seeked back: the pop-up goes, focus must not
     near = n;
   }
   /** One switch at a time: Next can be pressed in the bar and the pop-up, and the video can end meanwhile. */
@@ -59,7 +61,7 @@
     if (focusedVideo) return;
     focusedVideo = true;
     const a = document.activeElement;
-    if (a === document.body || a === closeBtn) video?.focus();
+    if (a === document.body || a === closeBtn) video?.focus({ preventScroll: true });
   }
   // Own fullscreen: the player overlay fills the window and the app window goes fullscreen. WebKitGTK's native
   // video fullscreen renders black on some NVIDIA/Wayland setups. Outside Tauri windows the overlay alone still works.
@@ -69,7 +71,7 @@
   }
   function key(e: KeyboardEvent) {
     const tag = (e.target as HTMLElement | null)?.tagName;
-    if (e.key === "Escape") { if (full) setFull(false); else onback(); return; }
+    if (e.key === "Escape") { if (full && !tv) setFull(false); else onback(); return; }
     if (tag === "INPUT") return;
     if (e.key === "f" || e.key === "F") { setFull(!full); e.preventDefault(); return; }
     if (!video) return;
@@ -79,9 +81,10 @@
     else if ((e.key === " " && (tag !== "BUTTON" || e.target === nextBtn)) || (e.key === "Enter" && tag === "VIDEO")) { if (video.paused) video.play().catch(() => {}); else video.pause(); e.preventDefault(); }
   }
   onMount(() => {
-    closeBtn?.focus(); section?.scrollIntoView({ block: "center" });
+    closeBtn?.focus(); section?.scrollIntoView({ block: "start" }); // start honors scroll-padding: the toolbar stays below the sticky top bar
     setSeekMode(true);
-    return pushBack(() => { if (full) setFull(false); else onback(); return true; });
+    if (tv) setFull(true);
+    return pushBack(() => { if (full && !tv) setFull(false); else onback(); return true; });
   });
   $effect(() => { setDpadRoot(section); setFullscreenMode(full); }); // the open player keeps D-pad focus to itself
   onDestroy(() => {
@@ -119,7 +122,7 @@
     <p role="status">Loading…</p>
   {/if}
   {#if near && hasNext && src && !frame}<button class="next-pop primary" bind:this={nextBtn} onclick={goNext}>▶ Next episode</button>{/if}
-  {#if !frame && !full}<button disabled={!embed} onclick={() => (frame = true)}>Use embedded player instead</button>{/if}
+  {#if !frame && (!full || error)}<button disabled={!embed} onclick={() => (frame = true)}>Use embedded player instead</button>{/if}
 </section>
 
 <style>
