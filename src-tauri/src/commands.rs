@@ -1,6 +1,6 @@
 use crate::creds::CredStore;
 use proxer_client::{Client, Error};
-use proxer_parse::{parse_episode_list, parse_info, parse_search_page, parse_streams, EpisodeList, Info, SearchPage, Stream};
+use proxer_parse::{parse_episode_list, parse_info, parse_search_page, parse_embed, parse_streams, EpisodeList, Info, MediaSource, SearchPage, Stream, StreamKind};
 use std::sync::Arc;
 use tauri::State;
 
@@ -72,6 +72,21 @@ pub async fn get_streams(app: State<'_, App>, id: u32, episode: u32, lang: Strin
     parse_streams(&html).map_err(|_| "Parse:streams".into())
 }
 
+/// The embed page to fetch for a stream, or "Unsupported" for hosters we cannot play.
+fn embed_target(stream: &Stream) -> Result<String, String> {
+    match stream.stream_kind() {
+        StreamKind::Normal | StreamKind::Airing => Ok(stream.embed_url()),
+        StreamKind::Other => Err("Unsupported".into()),
+    }
+}
+
+#[tauri::command]
+pub async fn resolve_stream(app: State<'_, App>, stream: Stream) -> Result<MediaSource, String> {
+    let url = embed_target(&stream)?;
+    let html = app.client.get_embed(&url).await.map_err(err)?;
+    parse_embed(&html).map_err(|_| "Parse:embed".to_string())
+}
+
 fn url_encode(s: &str) -> String {
     s.bytes().map(|b| match b {
         b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' => (b as char).to_string(),
@@ -99,5 +114,20 @@ mod tests {
         assert_eq!(err(Error::Http(503)), "Http:503");
         let n = reqwest::Client::new().get("http://").build().unwrap_err();
         assert_eq!(err(Error::Network(n)), "Network");
+    }
+
+    fn stream(kind: &str) -> Stream {
+        serde_json::from_str(&format!(
+            r#"{{"code":"abc","type":"{kind}","name":"n","replace":"https://stream.proxer.me/embed-#-728x504.html"}}"#
+        ))
+        .unwrap()
+    }
+
+    #[test]
+    fn embed_target_by_kind() {
+        let want = "https://stream.proxer.me/embed-abc-728x504.html";
+        assert_eq!(embed_target(&stream("proxer-stream")).as_deref(), Ok(want));
+        assert_eq!(embed_target(&stream("ps-test")).as_deref(), Ok(want));
+        assert_eq!(embed_target(&stream("other-host")), Err("Unsupported".to_string()));
     }
 }

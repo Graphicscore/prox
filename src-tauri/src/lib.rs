@@ -12,7 +12,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::login, commands::auto_login, commands::logout,
-            commands::search, commands::get_info, commands::get_episodes, commands::get_streams
+            commands::search, commands::get_info, commands::get_episodes, commands::get_streams, commands::resolve_stream
         ])
         .run(tauri::generate_context!())
         .expect("tauri run");
