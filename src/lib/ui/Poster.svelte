@@ -1,6 +1,6 @@
 <script lang="ts">
   import Cover from "./Cover.svelte";
-  let { id, title, rating = null, onclick }: { id: number; title: string; rating?: number | null; onclick: () => void } = $props();
+  let { id, title, rating = null, onclick }: { id: number; title: string; rating?: number | string | null; onclick: () => void } = $props();
 </script>
 
 <button class="poster" {onclick} aria-label={title}>

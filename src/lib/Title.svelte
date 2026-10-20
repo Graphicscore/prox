@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api, describeError, streamLabel, type Episode, type Info, type PageLink, type Stream } from "./api";
+  import { api, describeError, streamLabel, type Episode, type Info, type ListEntry, type PageLink, type Stream, type TitleAction } from "./api";
   import { pushBack } from "./back";
   import Player from "./Player.svelte";
   import Hero from "./ui/Hero.svelte";
@@ -14,6 +14,21 @@
   // Remote users land on Watch instead of nothing (Home/Search are hidden, so focus fell back to <body>).
   let watchBtn = $state<HTMLButtonElement>();
   $effect(() => { if (watchBtn && episodes.length && document.activeElement === document.body) watchBtn.focus({ preventScroll: true }); });
+  const STATES = ["Geschaut", "Am Schauen", "Wird noch geschaut", "Abgebrochen"];
+  let entry = $state<ListEntry | null>(null), message = $state(""), busy = false;
+  async function loadEntry() {
+    const cur = id;
+    try { const l = await api.myList(); if (cur === id) entry = l.find((e) => e.id === cur) ?? null; }
+    catch (x) { if (x === "NotLoggedIn") onauth(); } // the chip is optional: the page stays usable without it
+  }
+  /** Run a write; show Proxer's message, refresh the list state. Buttons stay enabled (TV focus), so guard re-entry. */
+  async function act(run: () => Promise<string>) {
+    if (busy) return;
+    busy = true; message = ""; error = "";
+    try { message = (await run()) || "Done"; await loadEntry(); } catch (x) { fail(x); }
+    busy = false;
+  }
+  const titleAct = (a: TitleAction) => act(() => api.titleAction(id, a));
   function fail(x: unknown) { if (x === "NotLoggedIn") onauth(); else error = describeError(x); }
   async function loadPage(p: number) {
     const cur = id;
@@ -27,9 +42,11 @@
   }
   $effect(() => {
     const cur = id;
+    entry = null; message = "";
     (async () => {
       try { const i = await api.info(cur); if (cur === id) info = i; } catch (x) { fail(x); return; }
       await loadPage(1);
+      loadEntry();
       if (import.meta.env.DEV) { // dev demo hook: ?pick=1 shows streams, ?play=1 opens the player
         const d = new URLSearchParams(location.search);
         if (d.get("play")) await watch(); else if (d.get("pick")) await pick(1, activeLang(episodes, lang));
@@ -54,18 +71,19 @@
     const s = streams.find((x) => streamLabel(x) !== "Unsupported");
     if (s) playing = s; else if (!error) error = "No playable stream for episode " + first;
   }
-  const meta = $derived([info?.fields["Status"], info?.fields["Genre"]].filter(Boolean).join(" · "));
+  const meta = $derived([info?.fields["Status"], info?.fields["Genre"], entry && `${STATES[entry.state] ?? ""} · ${entry.episode}/${entry.episodes || "?"}`].filter(Boolean).join(" · "));
 </script>
 
 {#if error}<p role="alert" class="err">{error}</p>{/if}
 {#if info}
   <Hero {id} title={info.title} {meta}>
     <button class="primary" bind:this={watchBtn} onclick={watch} disabled={!episodes.length}>▶ Watch</button>
-    {#each ["Note", "Favorite", "Finished"] as label (label)}
-      <button disabled title="Available in the next update">{label}</button>
-    {/each}
+    <button aria-pressed={entry?.state === 2} onclick={() => titleAct("note")}>Note</button>
+    <button onclick={() => titleAct("favor")}>Favorite</button>
+    <button aria-pressed={entry?.state === 0} onclick={() => titleAct("finish")}>Finished</button>
   </Hero>
-  <EpisodePicker {episodes} {pages} {epPage} {selected} {streams} bind:lang onpage={loadPage} onpick={pick} onplay={(s) => (playing = s)} />
+  {#if message}<p role="status" class="msg">{message}</p>{/if}
+  <EpisodePicker {episodes} {pages} {epPage} {selected} {streams} bind:lang onpage={loadPage} onpick={pick} onplay={(s) => (playing = s)} onreminder={(w) => { const s = selected; if (s) act(() => api.reminder(id, s.ep, s.lang, w)); }} />
   {#if playing}
     {#key playing}
       <Player stream={playing} onback={() => (playing = null)} {onauth} />
@@ -75,4 +93,6 @@
 
 <style>
   .err { padding: 12px var(--pad); color: var(--bad); }
+  .msg { padding: 8px var(--pad) 0; color: var(--muted); }
+  button[aria-pressed="true"] { background: var(--good); color: #fff; }
 </style>

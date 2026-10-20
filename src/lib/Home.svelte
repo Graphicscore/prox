@@ -1,21 +1,23 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api, describeError, type ListKind, type SearchHit } from "./api";
+  import { myListHits } from "./ui/helpers";
   import PosterRow from "./ui/PosterRow.svelte";
   import Hero from "./ui/Hero.svelte";
   let { onopen, onauth }: { onopen: (id: number) => void; onauth: () => void } = $props();
 
-  type Row = { kind: ListKind; title: string; status: "loading" | "ready" | "error"; hits: SearchHit[]; error: string };
+  type Row = { kind: ListKind | "mine"; title: string; status: "loading" | "ready" | "error"; hits: SearchHit[]; error: string };
   let rows = $state<Row[]>([
+    { kind: "mine", title: "My list", status: "loading", hits: [], error: "" },
     { kind: "airing", title: "Airing now", status: "loading", hits: [], error: "" },
     { kind: "rating", title: "Top rated", status: "loading", hits: [], error: "" },
     { kind: "clicks", title: "Most viewed", status: "loading", hits: [], error: "" },
   ]);
-  const hero = $derived(rows[0].hits[0] ?? null);
+  const hero = $derived(rows.find((r) => r.kind === "airing")?.hits[0] ?? null);
 
   async function load(r: Row) {
     r.status = "loading"; r.error = "";
-    try { r.hits = (await api.getList(r.kind)).hits; r.status = "ready"; }
+    try { r.hits = r.kind === "mine" ? myListHits(await api.myList()) : (await api.getList(r.kind)).hits; r.status = "ready"; }
     catch (x) { if (x === "NotLoggedIn") onauth(); else { r.error = describeError(x); r.status = "error"; } }
   }
   onMount(() => { for (const r of rows) load(r); }); // once; not an $effect, load() writes the state it would track

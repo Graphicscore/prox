@@ -1,9 +1,9 @@
 <script lang="ts">
   import { streamLabel, type Episode, type PageLink, type Stream } from "../api";
   import { activeLang, episodesWith, languagesOf } from "./helpers";
-  let { episodes, pages, epPage, selected, streams, onpage, onpick, onplay, lang = $bindable("") }: {
+  let { episodes, pages, epPage, selected, streams, onpage, onpick, onplay, onreminder, lang = $bindable("") }: {
     episodes: Episode[]; pages: PageLink[]; epPage: number; selected: { ep: number; lang: string } | null; streams: Stream[];
-    onpage: (p: number) => void; onpick: (ep: number, lang: string) => void; onplay: (s: Stream) => void; lang?: string;
+    onpage: (p: number) => void; onpick: (ep: number, lang: string) => void; onplay: (s: Stream) => void; onreminder: (which: "this" | "next") => void; lang?: string;
   } = $props();
   const langs = $derived(languagesOf(episodes));
   const active = $derived(activeLang(episodes, lang));
@@ -36,8 +36,8 @@
         <button class="stream" disabled={label === "Unsupported"} onclick={() => onplay(s)}>▶ {s.name} <span class="badge {label.toLowerCase()}">{label}</span></button>
       {:else}<p class="muted">No streams (yet)</p>{/each}
       <span class="sep"></span>
-      <button disabled title="Available in the next update">Watchlist: this episode</button>
-      <button disabled title="Available in the next update">Watchlist: next episode</button>
+      <button onclick={() => onreminder("this")}>Watchlist: this episode</button>
+      <button onclick={() => onreminder("next")}>Watchlist: next episode</button>
     </div>
   {/if}
 </section>
