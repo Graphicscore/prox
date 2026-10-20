@@ -10,6 +10,7 @@
   let section = $state<HTMLElement | null>(null), closeBtn = $state<HTMLButtonElement | null>(null);
   let retried = false, focusedVideo = false, alive = true, at = 0;
   const embed = $derived(safeEmbedUrl(stream));
+  const opener = document.activeElement as HTMLElement | null; // the stream/Watch button: gets focus back on close
 
   async function resolve() {
     error = "";
@@ -57,6 +58,8 @@
   $effect(() => { setDpadRoot(section); setFullscreenMode(full); }); // the open player keeps D-pad focus to itself
   onDestroy(() => {
     alive = false;
+    const a = document.activeElement; // only if focus was in the player (or lost), not when the user picked another tile
+    if (opener?.isConnected && (a === document.body || !a || section?.contains(a))) opener.focus({ preventScroll: true });
     setDpadRoot(null);
     setFullscreenMode(false);
     setSeekMode(false);

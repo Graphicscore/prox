@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { api } from "./lib/api";
   import Login from "./lib/Login.svelte";
   import Home from "./lib/Home.svelte";
@@ -13,6 +13,9 @@
   import { installTvInputs } from "./lib/tvInput";
   type Screen = "boot" | "login" | "home" | "search" | "info";
   let screen = $state<Screen>("boot"), from = $state<"home" | "search">("home"), id = $state(0), warning = $state("");
+  // Home and Search stay mounted (hidden) while a title is open: Back keeps their data, scroll and focused poster.
+  let seen = $state({ home: false, search: false }), returnFocus: HTMLElement | null = null;
+  $effect(() => { if (screen === "home" || screen === "search") seen[screen] = true; });
   const startScreen = (): Screen => {
     if (import.meta.env.DEV) { // dev only: ?screen=home|search|title&id=N for screenshots in the demo mode
       const q = new URLSearchParams(location.search);
@@ -38,8 +41,12 @@
     })();
     return () => { gone = true; offDpad(); offInputs(); offBack?.(); };
   });
-  async function logout() { await api.logout(); warning = ""; screen = "login"; }
-  const open = (i: number) => { from = screen === "search" ? "search" : "home"; id = i; screen = "info"; };
+  async function logout() { await api.logout(); warning = ""; seen = { home: false, search: false }; screen = "login"; }
+  const open = (i: number) => {
+    returnFocus = document.activeElement as HTMLElement | null;
+    from = screen === "search" ? "search" : "home"; id = i; screen = "info";
+  };
+  async function back() { screen = from; await tick(); if (returnFocus?.isConnected) returnFocus.focus(); }
   const auth = () => (screen = "login");
 </script>
 
@@ -48,13 +55,9 @@
 {:else if screen !== "boot"}
   <Shell tab={screen === "info" ? null : screen} onnav={(t) => (screen = t)} onlogout={logout}>
     {#if warning}<p role="status" class="warn">{warning}</p>{/if}
-    {#if screen === "home"}
-      <Home onopen={open} onauth={auth} />
-    {:else if screen === "search"}
-      <Search onopen={open} onauth={auth} />
-    {:else}
-      <Title {id} onback={() => (screen = from)} onauth={auth} />
-    {/if}
+    {#if seen.home}<div hidden={screen !== "home"}><Home onopen={open} onauth={auth} /></div>{/if}
+    {#if seen.search}<div hidden={screen !== "search"}><Search onopen={open} onauth={auth} /></div>{/if}
+    {#if screen === "info"}<Title {id} onback={back} onauth={auth} />{/if}
   </Shell>
 {/if}
 

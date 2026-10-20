@@ -11,6 +11,9 @@
   let epPage = $state(1), streams = $state<Stream[]>([]), lang = $state(""), playing = $state<Stream | null>(null);
   let selected = $state<{ ep: number; lang: string } | null>(null), error = $state("");
   onMount(() => pushBack(() => { onback(); return true; }));
+  // Remote users land on Watch instead of nothing (Home/Search are hidden, so focus fell back to <body>).
+  let watchBtn = $state<HTMLButtonElement>();
+  $effect(() => { if (watchBtn && episodes.length && document.activeElement === document.body) watchBtn.focus({ preventScroll: true }); });
   function fail(x: unknown) { if (x === "NotLoggedIn") onauth(); else error = describeError(x); }
   async function loadPage(p: number) {
     const cur = id;
@@ -57,8 +60,8 @@
 {#if error}<p role="alert" class="err">{error}</p>{/if}
 {#if info}
   <Hero {id} title={info.title} {meta}>
-    <button class="primary" onclick={watch} disabled={!episodes.length}>▶ Watch</button>
-    {#each ["Note", "Favorite", "Finished", "Watchlist: this ep.", "Watchlist: next ep."] as label (label)}
+    <button class="primary" bind:this={watchBtn} onclick={watch} disabled={!episodes.length}>▶ Watch</button>
+    {#each ["Note", "Favorite", "Finished"] as label (label)}
       <button disabled title="Available in the next update">{label}</button>
     {/each}
   </Hero>

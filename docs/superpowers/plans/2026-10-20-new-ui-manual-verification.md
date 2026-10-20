@@ -10,7 +10,7 @@ Setup. The human logs in on each device; agents then drive the app.
 - [ ] A "Most viewed" row with no hits is hidden entirely.
 - [ ] Forcing a list error shows the message and a Retry button that reloads the row.
 - [ ] Search: query shows a cover grid; Previous/Next pages work.
-- [ ] Open a title: hero, the Watch button and the five disabled buttons (Note, Favorite, Finished, Watchlist: this ep., Watchlist: next ep.) are visible.
+- [ ] Open a title: hero, the Watch button and the three disabled buttons (Note, Favorite, Finished) are visible; the two disabled Watchlist buttons (this/next episode) sit next to the streams of the picked episode.
 - [ ] Language chips and episode page chips switch; the current one is highlighted.
 - [ ] Picking an episode shows its streams right below the tiles.
 - [ ] Watch plays the first supported stream; Close player returns to the title; Back returns to Home/Search.

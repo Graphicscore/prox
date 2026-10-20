@@ -35,6 +35,9 @@
         {@const label = streamLabel(s)}
         <button class="stream" disabled={label === "Unsupported"} onclick={() => onplay(s)}>▶ {s.name} <span class="badge {label.toLowerCase()}">{label}</span></button>
       {:else}<p class="muted">No streams (yet)</p>{/each}
+      <span class="sep"></span>
+      <button disabled title="Available in the next update">Watchlist: this episode</button>
+      <button disabled title="Available in the next update">Watchlist: next episode</button>
     </div>
   {/if}
 </section>
@@ -49,7 +52,7 @@
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(4.2rem, 1fr)); gap: 8px; }
   .tile { border-radius: 6px; padding: 0.7em 0; }
   .tile[aria-pressed="true"] { background: var(--accent); }
-  .streams { display: flex; flex-wrap: wrap; gap: 10px; }
+  .streams { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .badge { font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; margin-left: 6px; background: var(--bg-4); }
   .badge.normal { background: var(--accent); }
   .badge.airing { background: var(--good); }
