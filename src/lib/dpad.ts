@@ -5,12 +5,16 @@ let seekMode = false;
 export const setSeekMode = (on: boolean) => { seekMode = on; };
 
 let root: ParentNode | null = null;
-/** Restrict navigation to a subtree (the fullscreen player); null = whole document. */
+/** Restrict navigation to a subtree (the open player keeps focus to itself); null = whole document. */
 export const setDpadRoot = (el: ParentNode | null) => { root = el; };
 
+let fullscreen = false;
+/** In fullscreen no toolbar is shown, so Left/Right always seek. */
+export const setFullscreenMode = (on: boolean) => { fullscreen = on; };
+
 /** Left/Right seek (instead of moving focus) only while the video itself is focused, or in fullscreen. */
-export const shouldSeek = (seekMode: boolean, targetTag: string | undefined, hasRoot: boolean) =>
-  seekMode && (targetTag === "VIDEO" || hasRoot);
+export const shouldSeek = (seekMode: boolean, targetTag: string | undefined, isFullscreen: boolean) =>
+  seekMode && (targetTag === "VIDEO" || isFullscreen);
 
 const dirs: Record<string, Dir> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
 
@@ -21,7 +25,7 @@ export function installDpad(): () => void {
     const tag = (e.target as HTMLElement | null)?.tagName;
     const horizontal = dir === "left" || dir === "right";
     if (horizontal && (tag === "INPUT" || tag === "TEXTAREA")) return; // caret movement
-    if (horizontal && shouldSeek(seekMode, tag, root !== null)) return;                              // the player seeks
+    if (horizontal && shouldSeek(seekMode, tag, fullscreen)) return;                              // the player seeks
     if (moveFocus(dir, root ?? document)) e.preventDefault();
   };
   window.addEventListener("keydown", onKey);

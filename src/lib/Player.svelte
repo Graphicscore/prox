@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { pushBack } from "./back";
-  import { setDpadRoot, setSeekMode } from "./dpad";
+  import { setDpadRoot, setFullscreenMode, setSeekMode } from "./dpad";
   import { api, describeError, safeEmbedUrl, streamLabel, type MediaSource, type Stream } from "./api";
   let { stream, onback, onauth }: { stream: Stream; onback: () => void; onauth: () => void } = $props();
   let src = $state<MediaSource | null>(null), error = $state(""), frame = $state(false), full = $state(false);
@@ -54,10 +54,11 @@
     setSeekMode(true);
     return pushBack(() => { if (full) setFull(false); else onback(); return true; });
   });
-  $effect(() => { setDpadRoot(full ? section : null); });
+  $effect(() => { setDpadRoot(section); setFullscreenMode(full); }); // the open player keeps D-pad focus to itself
   onDestroy(() => {
     alive = false;
     setDpadRoot(null);
+    setFullscreenMode(false);
     setSeekMode(false);
     if (full) getCurrentWindow().setFullscreen(false).catch(() => {}); // never leave the window fullscreen behind
   });

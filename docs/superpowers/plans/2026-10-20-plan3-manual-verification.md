@@ -66,3 +66,15 @@ Final tested emulator command: `emulator -avd <name> -no-window -no-audio -gpu s
 - Logcat both: 0 `FATAL EXCEPTION`, no CSP/"Refused to", no panics. Both emulators shut down (`adb devices` empty, no qemu).
 - Note: the phone AVD was nearly out of storage; the old app was uninstalled before installing the new APK.
 - Manifest: the built APK's merged manifest sets `android:allowBackup="false"` and `android:dataExtractionRules` (`aapt2 dump xmltree --file AndroidManifest.xml <apk>`).
+
+## Results (device run with a logged-in account, 2026-10-20)
+
+Phone emulator (Pixel_10_Pro_XL, API 37) and TV emulator (Television_4K, API 36), debug builds from `--split-per-abi` APKs.
+
+Passed on the phone: saved login survives relaunch and an app update that keeps data; search; info page with episode pager; a Normal stream and an Airing stream play with picture, subtitles and sound; fullscreen; Back closes fullscreen, then the player, then Info, then exits the app; an episode without streams shows "No streams (yet)".
+
+Passed on the TV (remote keys sent through `adb`): TV mode applied (`<html class="tv">`, native TV check true); the soft keyboard stays closed when focus arrives on a field and opens only after Select; Back closes the keyboard first; the remote reaches episode 1 and the Normal stream; focus lands on the video once playback starts; Left/Right seek ±10 s and Select pauses/resumes with the video focused; Up from the video reaches the Fullscreen button, Select enters fullscreen, Left/Right still seek there; Back steps fullscreen, player, Info, exit.
+
+Fixed during this run: the remote could not reach Close/Fullscreen because Up from the video jumped to an episode button; the open player now keeps D-pad focus to itself.
+
+Observations, not fixed: on a phone the streams list sits below all 50 episodes; tapping the same stream again while its player is open does not reopen it; one transient HTTP 404 from the airing embed was not retried automatically; screenshots of the emulator can show a stale video frame until the screen repaints (read the player state through WebView DevTools instead).
