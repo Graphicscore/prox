@@ -36,13 +36,3 @@
     <Info {id} onback={() => (screen = "search")} onauth={() => (screen = "login")} />
   {/if}
 {/if}
-
-<style>
-  :global(body) { background: #111; color: #eee; font-family: system-ui, sans-serif; margin: 1rem; }
-  :global(button:focus-visible, input:focus-visible, a:focus-visible) { outline: 3px solid #4af; outline-offset: 2px; }
-  :global(html.tv) { font-size: 24px; }
-  :global(html.tv body) { margin: 5vh 5vw; }
-  :global(html.tv button:focus-visible, html.tv input:focus-visible) { outline-width: 5px; }
-  @media (pointer: coarse) { :global(button), :global(input:not([type="checkbox"]):not([type="radio"])) { min-height: 44px; } }
-  :global(form label) { display: block; margin: 0.5rem 0; }
-</style>
