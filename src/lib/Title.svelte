@@ -131,7 +131,7 @@
     <button aria-pressed={entry?.state === 0} onclick={() => titleAct("finish")}>Finished</button>
   </Hero>
   {#if message}<p role="status" class="msg">{message}</p>{/if}
-  <EpisodePicker {episodes} {pages} {epPage} {selected} {streams} {loadingPage} {loadingStreams} bind:lang onpage={loadPage} onpick={pick} onplay={(s) => { playing = s; playKey++; }} onreminder={(w) => { const s = selected; if (s) act(() => api.reminder(id, s.ep, s.lang, w)); }} />
+  <EpisodePicker {episodes} {pages} {epPage} {selected} {streams} watchedUpTo={entry?.episode ?? 0} {loadingPage} {loadingStreams} bind:lang onpage={loadPage} onpick={pick} onplay={(s) => { playing = s; playKey++; }} onreminder={(w) => { const s = selected; if (s) act(() => api.reminder(id, s.ep, s.lang, w)); }} />
   {#if playing}
     {#key playKey}
       <Player stream={playing} onback={() => (playing = null)} {onauth} {hasNext} onnext={playNext} onwatched={watched} />
