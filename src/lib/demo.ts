@@ -19,7 +19,7 @@ export function makeDemoApi(): Api {
   ];
 
   const epis = (n: number): Episode[] => Array.from({ length: n }, (_, i) => ({ number: i + 1, langs: i % 7 === 6 ? ["engsub"] : ["engsub", "engdub", "gersub", "gerdub"] }));
-  const stream = (type: string, name: string): Stream => ({ code: "demo", type, name, replace: "https://stream.proxer.me/embed-#-728x504.html" });
+  const stream = (type: string, name: string, code = "demo"): Stream => ({ code, type, name, replace: "https://stream.proxer.me/embed-#-728x504.html" });
 
   return {
     login: async () => true,
@@ -41,7 +41,7 @@ export function makeDemoApi(): Api {
       episodes: epis(50).map((e) => ({ ...e, number: e.number + (page - 1) * 50 })),
       pages: [1, 2, 3, 4].map((p) => ({ page: p, label: `${(p - 1) * 50 + 1} - ${p * 50}` })),
     }),
-    streams: async () => [stream("proxer-stream", "Proxer-Stream"), stream("ps-test", "Proxer-Stream Airing")],
+    streams: async () => [stream("proxer-stream", "Proxer-Stream"), stream("ps-test", "Proxer-Stream Airing", "hdarrnfzlxyw") /* a real airing code: its preview frame exists on the CDN */],
     resolve: async () => { throw "Network"; },
     myList: async () => mine.map((e) => ({ ...e })),
     titleAction: async (_id: number, action: "note" | "favor" | "finish") =>
