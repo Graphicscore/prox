@@ -659,3 +659,23 @@ git add docs src-tauri/gen/android && git commit -m "docs: plan 3 manual verific
 - **Spec coverage:** Android and Android TV APK (Tasks 1, 5, 6), leanback manifest, `touchscreen required=false`, banner (Task 5), D-pad navigation and focus ring (Tasks 2, 3), Back key (Task 3), Enter toggles play (Task 3), TV 10-foot sizing and 5% overscan margin (Task 3), touch 44 px targets (Task 3), credential storage on Android (Task 4, with the recorded security trade-off), media proxy only if the WebView needs it (Task 6 trigger). Cleartext loopback is not needed (no proxy). Not covered, by design: Apple platforms, store signing, release APK signing, a Kotlin Keystore plugin, open-in-system-browser fallback.
 - **Placeholders:** `<newest stable>` NDK version and `<path to the i686 debug apk>` are values only known at execution and are determined by commands shown in the same steps.
 - **Type consistency:** `Dir`/`Box`/`pickNext`/`moveFocus` (Task 2) are imported by `dpad.ts` (Task 3); `pushBack`/`handleBack` (Task 3) are used by `Info.svelte`, `Player.svelte` and `App.svelte`; `setSeekMode` (Task 3) is used only by the player; `FileStore` (Task 4) implements the `CredStore` trait defined in Plan 1.
+
+---
+
+### Task 7: Android polish found on the emulators (added after Task 6)
+
+**Goal:** Fix the three problems the emulator run found: TV mode not detected on a TV, the soft keyboard stealing the D-pad on TV, and the status bar overlapping the page on phones.
+
+**Files:**
+- Modify: `src-tauri/gen/android/app/src/main/java/me/louven/proxer/MainActivity.kt`
+- Modify: `src/lib/tv.ts`, `src/lib/tv.test.ts`, `src/App.svelte`
+- Create: `src/lib/tvInput.ts`
+
+**Acceptance Criteria:**
+- [ ] `MainActivity.kt` exposes `AndroidTv.isTv()` to the page through a JavaScript interface backed by `UiModeManager.currentModeType == UI_MODE_TYPE_TELEVISION`; `detectTv` takes a 4th argument (native answer, `boolean | null`) and the order is: explicit override, then the native answer when it is a boolean, then the old heuristic (Android UA and no touch points). Tests cover all three tiers.
+- [ ] In TV mode text and password inputs are `readonly` while focused by navigation, so the soft keyboard does not open; Enter/Select unlocks the field and opens the keyboard; the lock comes back when focus leaves the field. Not active outside TV mode.
+- [ ] On the phone emulator the "Proxer" heading is no longer covered by the status bar (system-bar insets are applied as padding, by CSS `env(safe-area-inset-*)` with `viewport-fit=cover` or by a window-insets listener in `MainActivity.kt`, whichever demonstrably works).
+- [ ] Rebuilt debug APKs install and launch on both emulators; screenshots show TV mode active on the TV emulator (large text, margin), no IME after D-pad focus on a field, IME only after Enter, and no status-bar overlap on the phone.
+- [ ] `npm test`, `npm run check` (0 errors, 0 warnings), `npm run build`, `cargo test --workspace` (50 tests) all pass; no desktop regression.
+
+**Verify:** `npm test && npm run check && npm run build && cargo test --workspace` → all green, plus the emulator screenshots
