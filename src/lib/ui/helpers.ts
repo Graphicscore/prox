@@ -100,3 +100,9 @@ export function pageFor(pages: PageLink[], ep: number): number | null {
   }
   return null;
 }
+
+/** Shown on Login and in the top bar: CI builds are 0.1.<build number>, local builds 0.1.0. */
+export function versionLabel(v: string): string {
+  const b = Number(v.split(".")[2]);
+  return b > 0 ? `Build ${b} · v${v}` : `Dev build · v${v}`;
+}
