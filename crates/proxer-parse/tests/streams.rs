@@ -1,7 +1,6 @@
 use proxer_parse::{parse_streams, ParseError, StreamKind};
 
 #[test]
-#[ignore = "needs fixtures/watch-45-1.html (user-saved)"]
 fn parses_streams_fixture() {
     let html = std::fs::read_to_string("../../fixtures/watch-45-1.html").unwrap();
     let s = parse_streams(&html).unwrap();

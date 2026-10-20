@@ -8,7 +8,6 @@ fn anon_home_has_login_form() {
 }
 
 #[test]
-#[ignore = "needs fixtures/info-45.html (user-saved)"]
 fn info_fixture_is_logged_in() {
     let html = std::fs::read_to_string("../../fixtures/info-45.html").unwrap();
     assert!(is_logged_in(&html));
