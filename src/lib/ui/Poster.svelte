@@ -3,7 +3,7 @@
   let { id, title, rating = null, onclick }: { id: number; title: string; rating?: number | string | null; onclick: () => void } = $props();
 </script>
 
-<button class="poster" {onclick} aria-label={title}>
+<button class="poster" data-id={id} {onclick} aria-label={title}>
   <span class="img"><Cover {id} {title} />{#if rating}<span class="badge">{rating}</span>{/if}</span>
   <span class="t">{title}</span>
 </button>

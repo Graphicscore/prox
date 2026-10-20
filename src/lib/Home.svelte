@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, untrack } from "svelte";
+  import { onMount, tick, untrack } from "svelte";
   import { api, describeError, type ListKind, type SearchHit } from "./api";
   import { myListHits } from "./ui/helpers";
   import PosterRow from "./ui/PosterRow.svelte";
@@ -23,15 +23,30 @@
   }
   onMount(() => { for (const r of rows) load(r); }); // once; not an $effect, load() writes the state it would track
   // Home stays mounted behind an open title: back on Home, refresh only My list (watching/Note/Finished change it).
-  let wasActive = true;
-  $effect(() => { const a = active; untrack(() => { if (a && !wasActive) load(rows[0], true); wasActive = a; }); });
+  let wasActive = true, lastId = 0, root = $state<HTMLElement>();
+  $effect(() => { const a = active; untrack(() => { if (a && !wasActive) load(rows[0], true).then(refocus); wasActive = a; }); });
+  const open = (i: number) => { lastId = i; onopen(i); };
+  /** The refresh dropped or moved the focused poster: focus it again (same title, else the row's first), never leave <body>. */
+  async function refocus() {
+    await tick();
+    const a = document.activeElement;
+    if (!active || (a && a !== document.body && a.isConnected)) return;
+    const ids = rows[0].hits.map((h) => h.id), id = ids.includes(lastId) ? lastId : ids[0];
+    if (id !== undefined) root?.querySelector<HTMLElement>(`[data-id="${id}"]`)?.focus(); // the My list row comes first in the DOM
+  }
 </script>
 
 {#if hero}
   <Hero id={hero.id} title={hero.title} meta={[hero.kind, hero.rating, hero.genres.slice(0, 3).join(", ")].filter(Boolean).join(" · ")}>
-    <button class="primary" onclick={() => onopen(hero.id)}>▶ Open</button>
+    <button class="primary" onclick={() => open(hero.id)}>▶ Open</button>
   </Hero>
 {/if}
-{#each rows as r (r.kind)}
-  <PosterRow title={r.title} hits={r.hits} status={r.status} error={r.error} {onopen} onretry={() => load(r)} />
-{/each}
+<div class="rows" bind:this={root}>
+  {#each rows as r (r.kind)}
+    <PosterRow title={r.title} hits={r.hits} status={r.status} error={r.error} onopen={open} onretry={() => load(r)} />
+  {/each}
+</div>
+
+<style>
+  .rows { display: contents; }
+</style>

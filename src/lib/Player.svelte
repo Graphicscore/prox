@@ -31,7 +31,7 @@
   $effect(() => { // first mount and every Next: same instance, so fullscreen and focus scope survive
     if (stream === shown) return;
     shown = stream;
-    untrack(() => { src = null; error = ""; frame = false; retried = false; focusedVideo = false; at = 0; near = false; started = false; resolve(); });
+    untrack(() => { release(); src = null; error = ""; frame = false; retried = false; focusedVideo = false; at = 0; near = false; started = false; resolve(); });
   });
   function ontime() {
     if (!video) return;
@@ -49,9 +49,11 @@
   const goNext = () => advance(near && !frame, true);
   const onended = () => advance(true, hasNext);
   function onVideoError() {
-    if (!retried) { retried = true; focusedVideo = false; started = false; at = video?.currentTime ?? 0; src = null; resolve(); } // airing URLs expire: scrape again once
+    if (!retried) { retried = true; focusedVideo = false; started = false; at = video?.currentTime ?? 0; release(); src = null; resolve(); } // airing URLs expire: scrape again once
     else error = "Playback failed";
   }
+  // Android WebView: a removed <video> keeps its connection to the stream host and stalls the next one. Free it first.
+  function release() { if (!video) return; video.pause(); video.removeAttribute("src"); video.load(); }
   // Focus the video once per <video>, and only if the user has not moved focus to another control.
   function focusVideoOnce() {
     if (focusedVideo) return;
@@ -84,6 +86,7 @@
   $effect(() => { setDpadRoot(section); setFullscreenMode(full); }); // the open player keeps D-pad focus to itself
   onDestroy(() => {
     alive = false;
+    release();
     const a = document.activeElement; // only if focus was in the player (or lost), not when the user picked another tile
     if (opener?.isConnected && (a === document.body || !a || section?.contains(a))) opener.focus();
     setDpadRoot(null);
@@ -111,7 +114,7 @@
   {:else if src}
     <!-- ponytail: src.mime unused, no HLS path; add hls.js only if a probe shows m3u8 sources -->
     <!-- svelte-ignore a11y_media_has_caption -->
-    <video class="media" tabindex="0" bind:this={video} src={src.url} controls controlslist="nofullscreen" autoplay playsinline ontimeupdate={ontime} {onended} onerror={onVideoError} onplaying={() => { retried = false; focusVideoOnce(); }} onplay={() => (started = true)} onpause={() => (started = true)} oncanplay={() => { if (!started) { started = true; video?.play().catch(() => {}); } }} onloadedmetadata={() => { if (at && video) video.currentTime = at; at = 0; }}></video>
+    <video class="media" tabindex="0" bind:this={video} src={src.url} controls controlslist="nofullscreen" autoplay playsinline ontimeupdate={ontime} {onended} onerror={onVideoError} onplaying={() => { retried = false; focusVideoOnce(); }} onplay={(e) => { if (e.currentTarget === video) started = true; }} onpause={(e) => { if (e.currentTarget === video) started = true; }} oncanplay={() => { if (!started) { started = true; video?.play().catch(() => {}); } }} onloadedmetadata={() => { if (at && video) video.currentTime = at; at = 0; }}></video>
   {:else if !frame && !error}
     <p role="status">Loading…</p>
   {/if}
