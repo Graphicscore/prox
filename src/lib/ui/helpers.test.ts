@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activeLang, coverUrl, episodesWith, languagesOf, myListHits, nearEnd, nextEpisode } from "./helpers.ts";
+import { activeLang, pageWindow, coverUrl, episodesWith, languagesOf, myListHits, nearEnd, nextEpisode } from "./helpers.ts";
 
 const eps = [
   { number: 2, langs: ["gersub", "engsub"] },
@@ -61,4 +61,14 @@ test("nearEnd: last 90 s, or last 10 % for videos under 15 min", () => {
   assert.equal(nearEnd(530, 600), false);
   assert.equal(nearEnd(10, NaN), false);
   assert.equal(nearEnd(0, 0), false);
+});
+
+test("pageWindow: first, last and two around the current page", () => {
+  const P = Array.from({ length: 24 }, (_, i) => ({ page: i + 1, label: String(i + 1) }));
+  const nums = (cur: number) => pageWindow(P, cur).map((p) => p?.page ?? "…");
+  assert.deepEqual(nums(6), [1, "…", 4, 5, 6, 7, 8, "…", 24]);
+  assert.deepEqual(nums(1), [1, 2, 3, "…", 24]);
+  assert.deepEqual(nums(24), [1, "…", 22, 23, 24]);
+  assert.deepEqual(nums(3), [1, 2, 3, 4, 5, "…", 24]);
+  assert.equal(pageWindow(P.slice(0, 7), 1).length, 7);
 });

@@ -39,3 +39,14 @@ export function nearEnd(t: number, duration: number): boolean {
   if (!Number.isFinite(duration) || duration <= 0) return false;
   return duration - t <= (duration < 900 ? duration * 0.1 : 90);
 }
+
+/** Page chips to show: first, last and `r` pages around the current one; null marks a gap ("…"). */
+export function pageWindow(pages: PageLink[], cur: number, r = 2): (PageLink | null)[] {
+  if (pages.length <= 2 * r + 3) return pages;
+  const out: (PageLink | null)[] = [];
+  pages.forEach((p, i) => {
+    if (i === 0 || i === pages.length - 1 || Math.abs(p.page - cur) <= r) out.push(p);
+    else if (out[out.length - 1] !== null) out.push(null);
+  });
+  return out;
+}
