@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activeLang, calendarDays, pageWindow, coverUrl, episodesWith, languagesOf, myListHits, nearEnd, nextEpisode } from "./helpers.ts";
+import { activeLang, streamThumb, calendarDays, pageWindow, coverUrl, episodesWith, languagesOf, myListHits, nearEnd, nextEpisode } from "./helpers.ts";
 
 const eps = [
   { number: 2, langs: ["gersub", "engsub"] },
@@ -83,4 +83,11 @@ test("calendarDays: local days, Today/Tomorrow/date labels, sorted by time, merg
   assert.deepEqual(days[1].hits.map((h) => [h.id, h.badge]), [[4, "00:15 · Ep 2"]]);
   assert.equal(days[0].hits[0].title, "t2");
   assert.equal(calendarDays([], now).length, 0);
+});
+
+test("streamThumb: airing streams only, safe codes only", () => {
+  const S = (type: string, code: string) => ({ code, type, name: "n", replace: "" });
+  assert.equal(streamThumb(S("ps-test", "hdarrnfzlxyw")), "https://stream-service-cdn.proxer.me/thumb/hdarrnfzlxyw.jpg");
+  assert.equal(streamThumb(S("proxer-stream", "z6iu152riwx4")), null);
+  assert.equal(streamThumb(S("ps-test", "../x")), null);
 });

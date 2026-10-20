@@ -1,4 +1,4 @@
-import type { CalendarEntry, Episode, ListEntry, PageLink, SearchHit } from "../api.ts";
+import type { Stream, CalendarEntry, Episode, ListEntry, PageLink, SearchHit } from "../api.ts";
 
 /** Cover image for a title id; built in the browser, no parsing needed. */
 export const coverUrl = (id: number) => `https://cdn.proxer.me/cover/${id}.jpg`;
@@ -73,3 +73,7 @@ export function calendarDays(entries: CalendarEntry[], now: Date): { key: string
   }
   return [...days.values()];
 }
+
+/** Episode preview frame. Only airing streams (`ps-test`) have one; for other codes the CDN returns a placeholder. */
+export const streamThumb = (s: Stream): string | null =>
+  s.type === "ps-test" && /^[a-z0-9]+$/.test(s.code) ? `https://stream-service-cdn.proxer.me/thumb/${s.code}.jpg` : null;
