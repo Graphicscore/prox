@@ -1,6 +1,6 @@
 use crate::creds::CredStore;
 use proxer_client::{Client, Error};
-use proxer_parse::{action_result, parse_my_list, plan_watched, token, ListEntry, Step, parse_episode_list, parse_info, parse_search_page, parse_embed, parse_streams, EpisodeList, Info, MediaSource, SearchPage, Stream, StreamKind};
+use proxer_parse::{action_result, parse_calendar, parse_my_list, CalendarEntry, plan_watched, token, ListEntry, Step, parse_episode_list, parse_info, parse_search_page, parse_embed, parse_streams, EpisodeList, Info, MediaSource, SearchPage, Stream, StreamKind};
 use std::sync::Arc;
 use tauri::State;
 
@@ -69,6 +69,11 @@ pub async fn get_list(app: State<'_, App>, kind: String) -> Result<SearchPage, S
     let path = list_path(&kind).ok_or_else(|| "Unsupported".to_string())?;
     let html = app.client.get(path).await.map_err(err)?;
     Ok(parse_search_page(&html))
+}
+
+#[tauri::command]
+pub async fn get_calendar(app: State<'_, App>) -> Result<Vec<CalendarEntry>, String> {
+    Ok(parse_calendar(&app.client.get("/calendar").await.map_err(err)?))
 }
 
 #[tauri::command]

@@ -1,4 +1,4 @@
-import type { Api, Episode, Info, ListEntry, ListKind, SearchHit, SearchPage, Stream } from "./api";
+import type { Api, CalendarEntry, Episode, Info, ListEntry, ListKind, SearchHit, SearchPage, Stream } from "./api";
 
 // A factory so the fake data is not top-level side effects: Rollup can then drop it from production builds.
 export function makeDemoApi(): Api {
@@ -27,6 +27,10 @@ export function makeDemoApi(): Api {
     logout: async () => {},
     search: async (query: string): Promise<SearchPage> => ({ hits: HITS.filter((h) => h.title.toLowerCase().includes(query.toLowerCase()) || !query), has_next: false }),
     getList: async (kind: ListKind): Promise<SearchPage> => ({ hits: lists[kind], has_next: false }),
+    getCalendar: async (): Promise<CalendarEntry[]> => {
+      const base = Math.floor(Date.now() / 3600000) * 3600; // this hour
+      return HITS.slice(0, 8).map((h, i) => ({ id: h.id, title: h.title, episode: i + 1, lang: "engsub", air: base + i * 4 * 3600 }));
+    },
     info: async (id: number): Promise<Info> => {
       const h = HITS.find((x) => x.id === id) ?? HITS[0];
       return { title: h.title, fields: { Status: id === 53 || id === 59782 ? "Airing" : "Abgeschlossen", Genre: h.genres.join(", "), Season: "Herbst 2002" } };

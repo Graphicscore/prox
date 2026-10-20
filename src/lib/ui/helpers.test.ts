@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activeLang, pageWindow, coverUrl, episodesWith, languagesOf, myListHits, nearEnd, nextEpisode } from "./helpers.ts";
+import { activeLang, calendarDays, pageWindow, coverUrl, episodesWith, languagesOf, myListHits, nearEnd, nextEpisode } from "./helpers.ts";
 
 const eps = [
   { number: 2, langs: ["gersub", "engsub"] },
@@ -71,4 +71,16 @@ test("pageWindow: first, last and two around the current page", () => {
   assert.deepEqual(nums(24), [1, "…", 22, 23, 24]);
   assert.deepEqual(nums(3), [1, 2, 3, 4, 5, "…", 24]);
   assert.equal(pageWindow(P.slice(0, 7), 1).length, 7);
+});
+
+test("calendarDays: local days, Today/Tomorrow/date labels, sorted by time, merged same-title episodes", () => {
+  const at = (d: number, h: number, m = 0) => new Date(2026, 9, d, h, m).getTime() / 1000;
+  const E = (id: number, episode: number, air: number) => ({ id, title: "t" + id, episode, lang: "engsub", air });
+  const now = new Date(2026, 9, 20, 12, 0);
+  const days = calendarDays([E(3, 1, at(22, 8)), E(1, 4, at(20, 21, 30)), E(2, 7, at(20, 9, 5)), E(1, 5, at(20, 22)), E(4, 2, at(21, 0, 15))], now);
+  assert.deepEqual(days.map((d) => d.label), ["Today", "Tomorrow", "Thursday 22 October"]);
+  assert.deepEqual(days[0].hits.map((h) => [h.id, h.badge]), [[2, "09:05 · Ep 7"], [1, "21:30 · Ep 4, 5"]]);
+  assert.deepEqual(days[1].hits.map((h) => [h.id, h.badge]), [[4, "00:15 · Ep 2"]]);
+  assert.equal(days[0].hits[0].title, "t2");
+  assert.equal(calendarDays([], now).length, 0);
 });

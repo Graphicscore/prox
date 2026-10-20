@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   let { tab, onnav, onlogout, children }: {
-    tab: "home" | "search" | null; onnav: (t: "home" | "search") => void; onlogout: () => void; children?: Snippet;
+    tab: "home" | "search" | "calendar" | null; onnav: (t: "home" | "search" | "calendar") => void; onlogout: () => void; children?: Snippet;
   } = $props();
 </script>
 
@@ -9,6 +9,7 @@
   <strong class="logo">Proxer</strong>
   <button class="tab" aria-current={tab === "home" ? "page" : undefined} onclick={() => onnav("home")}>Home</button>
   <button class="tab" aria-current={tab === "search" ? "page" : undefined} onclick={() => onnav("search")}>Search</button>
+  <button class="tab" aria-current={tab === "calendar" ? "page" : undefined} onclick={() => onnav("calendar")}>Calendar</button>
   <span class="grow"></span>
   <button class="ghost" onclick={onlogout}>Log out</button>
 </header>
