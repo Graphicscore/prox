@@ -3,3 +3,10 @@ node_modules/
 dist/
 .remember/
 .superpowers/
+
+# android
+src-tauri/gen/android/.gradle/
+src-tauri/gen/android/**/build/
+src-tauri/gen/android/local.properties
+*.apk
+*.aab

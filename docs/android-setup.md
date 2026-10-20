@@ -31,3 +31,19 @@ Expected: `openjdk version "21...`, the three `*-linux-android` targets, then `N
 | `rustup: command not found` | Step 1 not done, or `~/.cargo/bin` not on PATH: run `source scripts/android-env.sh`. |
 | `java -version` shows 27 (or Gradle/sdkmanager errors about the JDK) | Env script not sourced; JDK 21 is required. Check `/usr/lib/jvm/java-21-openjdk` exists (`sudo pacman -S jdk21-openjdk`). |
 | `NDK_HOME` empty or `.../ndk/` | NDK not installed yet (step 5); re-source the script afterwards. |
+
+## Build and install
+
+Both targets write the same path (`app-universal-debug.apk`), so the second build overwrites the first: copy/rename the APK after each build.
+
+```bash
+source scripts/android-env.sh
+npm run tauri android build -- --debug --apk --target i686     # Android TV emulator (32-bit x86), ~170 MB
+cp src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk proxer-tv-x86.apk
+npm run tauri android build -- --debug --apk --target x86_64   # phone emulator, ~185 MB
+cp src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk proxer-phone-x86_64.apk
+```
+
+APK output path (both builds): `src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk`
+
+Install on a running emulator/device: `adb install -r <apk>` (use `adb -s <serial>` when several are attached).
