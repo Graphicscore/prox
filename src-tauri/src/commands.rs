@@ -14,6 +14,7 @@ fn err(e: Error) -> String {
         Error::NotLoggedIn => "NotLoggedIn".into(),
         Error::BadCredentials => "BadCredentials".into(),
         Error::Parse(p) => format!("Parse:{p}"),
+        Error::Http(n) => format!("Http:{n}"),
         Error::Network(_) => "Network".into(),
     }
 }
@@ -21,6 +22,9 @@ fn err(e: Error) -> String {
 #[tauri::command]
 pub async fn login(app: State<'_, App>, username: String, password: String, remember: bool) -> Result<bool, String> {
     app.client.login(&username, &password).await.map_err(err)?;
+    if !remember {
+        app.store.clear(); // an older saved account must not auto-login next start
+    }
     // true = credentials persisted (or not requested); false = remember requested but keychain write failed
     Ok(!remember || app.store.save(&username, &password).is_ok())
 }
@@ -90,6 +94,7 @@ mod tests {
         assert_eq!(err(Error::NotLoggedIn), "NotLoggedIn");
         assert_eq!(err(Error::BadCredentials), "BadCredentials");
         assert_eq!(err(Error::Parse("x")), "Parse:x");
+        assert_eq!(err(Error::Http(503)), "Http:503");
         let n = reqwest::Client::new().get("http://").build().unwrap_err();
         assert_eq!(err(Error::Network(n)), "Network");
     }

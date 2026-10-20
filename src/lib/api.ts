@@ -4,7 +4,16 @@ export type SearchHit = { id: number; title: string; genres: string[]; kind: str
 export type Info = { title: string; fields: Record<string, string> };
 export type Stream = { code: string; type: string; name: string; replace: string };
 export type Episode = { number: number; langs: string[] };
-export const isAiring = (s: Stream) => s.type === "ps-test";
+export const streamLabel = (s: Stream) => (s.type === "proxer-stream" ? "Normal" : s.type === "ps-test" ? "Airing" : "Unsupported");
+
+export function describeError(x: unknown): string {
+  const c = String(x);
+  if (c === "BadCredentials") return "Wrong username or password";
+  if (c === "Network") return "Could not reach Proxer";
+  if (c.startsWith("Http:")) return `Proxer is not responding (HTTP ${c.slice(5)}). Try again.`;
+  if (c.startsWith("Parse:")) return "Proxer changed something \u2014 the page looks different";
+  return "Something went wrong";
+}
 
 export const api = {
   /** resolves true if credentials were saved to the keychain (or remember=false) */

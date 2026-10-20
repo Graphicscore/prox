@@ -40,5 +40,12 @@ impl Stream {
 pub fn parse_streams(html: &str) -> Result<Vec<Stream>, ParseError> {
     let re = Regex::new(r"var\s+streams\s*=\s*(\[[\s\S]*?\]);").unwrap();
     let caps = re.captures(html).ok_or(ParseError::NoStreams)?;
-    Ok(serde_json::from_str(&caps[1])?)
+    let items: Vec<serde_json::Value> = serde_json::from_str(&caps[1])?;
+    let text = |v: &serde_json::Value, k: &str| v.get(k).and_then(|x| x.as_str()).unwrap_or("").to_string();
+    // skip entries without a string `type`; default other missing fields to ""
+    Ok(items
+        .iter()
+        .filter(|v| v.get("type").is_some_and(|t| t.is_string()))
+        .map(|v| Stream { code: text(v, "code"), kind: text(v, "type"), name: text(v, "name"), replace: text(v, "replace") })
+        .collect())
 }

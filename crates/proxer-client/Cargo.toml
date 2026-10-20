@@ -6,8 +6,9 @@ edition = "2021"
 [dependencies]
 proxer-parse = { path = "../proxer-parse" }
 reqwest = { version = "0.12", default-features = false, features = ["cookies", "rustls-tls"] }
-tokio = { version = "1", features = ["sync", "macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["sync"] }
 thiserror = "1"
 
 [dev-dependencies]
 wiremock = "0.6"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

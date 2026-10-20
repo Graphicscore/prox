@@ -33,3 +33,12 @@ fn empty_streams_array_is_ok() {
     let s = parse_streams("<script>var streams = [];</script>").unwrap();
     assert!(s.is_empty());
 }
+
+#[test]
+fn malformed_entry_does_not_drop_others() {
+    let html = r#"<script>var streams = [{"type":"proxer-stream","code":"a","name":"N","replace":"r"},{"code":"x"},{"type":"ps-test"},5];</script>"#;
+    let s = parse_streams(html).unwrap();
+    assert_eq!(s.len(), 2);
+    assert_eq!(s[0].code, "a");
+    assert_eq!((s[1].kind.as_str(), s[1].code.as_str(), s[1].replace.as_str()), ("ps-test", "", ""));
+}

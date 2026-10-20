@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { api, type SearchHit } from "./api";
+  import { api, describeError, type SearchHit } from "./api";
   let { onopen, onauth }: { onopen: (id: number) => void; onauth: () => void } = $props();
   let q = $state(""), hits = $state<SearchHit[]>([]), error = $state("");
   async function go(e: Event) {
     e.preventDefault(); error = "";
     try { hits = await api.search(q); }
-    catch (x) { if (x === "NotLoggedIn") onauth(); else error = "Search failed"; }
+    catch (x) { if (x === "NotLoggedIn") onauth(); else error = describeError(x); }
   }
 </script>
 

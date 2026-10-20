@@ -10,6 +10,8 @@ pub enum Error {
     BadCredentials,
     #[error("page structure unexpected: {0}")]
     Parse(&'static str),
+    #[error("http status {0}")]
+    Http(u16),
     #[error("network: {0}")]
     Network(#[from] reqwest::Error),
 }
@@ -55,29 +57,36 @@ impl Client {
         *self.creds.lock().await = None;
     }
 
+    /// Log in with a fresh cookie jar. Accounts with 2FA (secretkey) are unsupported.
     pub async fn login(&self, user: &str, pass: &str) -> Result<(), Error> {
         let _p = self.gate.acquire().await.expect("semaphore");
+        *self.http.write().expect("http lock") = Self::build_http();
         let http = self.http();
-        let home = http.get(&self.base).send().await?.text().await?;
-        let action = proxer_parse::login_action(&home).ok_or(Error::Parse("login form"))?;
+        let home = http.get(&self.base).send().await?;
+        check_status(home.status())?;
+        let action = proxer_parse::login_action(&home.text().await?).ok_or(Error::Parse("login form"))?;
         let res = http
             .post(format!("{}{}", self.base, action))
-            .form(&[("username", user), ("password", pass)])
+            .form(&[("username", user), ("password", pass), ("secretkey", ""), ("remember", "1"), ("submit", "Login")])
             .send()
-            .await?
-            .text()
             .await?;
+        check_status(res.status())?;
+        let res = res.text().await?;
         if proxer_parse::is_logged_in(&res) {
             self.set_credentials(user, pass).await;
             Ok(())
+        } else if proxer_parse::login_action(&res).is_some() {
+            Err(Error::BadCredentials) // only positive evidence: the login form came back
         } else {
-            Err(Error::BadCredentials)
+            Err(Error::Parse("login result"))
         }
     }
 
     async fn fetch(&self, path: &str) -> Result<String, Error> {
         let _p = self.gate.acquire().await.expect("semaphore");
-        Ok(self.http().get(format!("{}{}", self.base, path)).send().await?.text().await?)
+        let res = self.http().get(format!("{}{}", self.base, path)).send().await?;
+        check_status(res.status())?; // before the logged-in check: 5xx pages are not a lost session
+        Ok(res.text().await?)
     }
 
     /// GET a page; if it comes back logged out, log in again once and retry once.
@@ -106,4 +115,8 @@ impl Client {
         let body = self.fetch(path).await?;
         if proxer_parse::is_logged_in(&body) { Ok(body) } else { Err(Error::NotLoggedIn) }
     }
+}
+
+fn check_status(s: reqwest::StatusCode) -> Result<(), Error> {
+    if s.is_server_error() || s.as_u16() == 429 { Err(Error::Http(s.as_u16())) } else { Ok(()) }
 }
