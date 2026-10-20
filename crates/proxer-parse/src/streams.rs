@@ -35,6 +35,11 @@ impl Stream {
             _ => StreamKind::Other,
         }
     }
+
+    /// The embed page for this stream: `replace` has a `#` placeholder for `code`.
+    pub fn embed_url(&self) -> String {
+        self.replace.replace('#', &self.code)
+    }
 }
 
 pub fn parse_streams(html: &str) -> Result<Vec<Stream>, ParseError> {

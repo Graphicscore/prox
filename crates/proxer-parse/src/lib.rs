@@ -1,3 +1,4 @@
+mod embed;
 mod episodes;
 mod info;
 mod search;
@@ -8,3 +9,4 @@ pub use info::{parse_info, Info};
 pub use search::{parse_search, parse_search_page, SearchHit, SearchPage};
 pub use session::{is_logged_in, login_action};
 pub use streams::{parse_streams, ParseError, Stream, StreamKind};
+pub use embed::{parse_embed, EmbedError, MediaSource};
