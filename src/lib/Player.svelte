@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
   import { api, describeError, safeEmbedUrl, streamLabel, type MediaSource, type Stream } from "./api";
   let { stream, onback, onauth }: { stream: Stream; onback: () => void; onauth: () => void } = $props();
-  let src = $state<MediaSource | null>(null), error = $state(""), frame = $state(false);
+  let src = $state<MediaSource | null>(null), error = $state(""), frame = $state(false), full = $state(false);
   let video = $state<HTMLVideoElement | null>(null);
   let section = $state<HTMLElement | null>(null), closeBtn = $state<HTMLButtonElement | null>(null);
   let retried = false, alive = true, at = 0;
@@ -22,33 +23,58 @@
     if (!retried) { retried = true; at = video?.currentTime ?? 0; src = null; resolve(); } // airing URLs expire: scrape again once
     else error = "Playback failed";
   }
+  // Own fullscreen: the player overlay fills the window and the app window goes fullscreen. WebKitGTK's native
+  // video fullscreen renders black on some NVIDIA/Wayland setups. Outside Tauri windows the overlay alone still works.
+  async function setFull(on: boolean) {
+    full = on;
+    try { await getCurrentWindow().setFullscreen(on); } catch { /* no window API (mobile/browser): overlay only */ }
+  }
   function key(e: KeyboardEvent) {
     const tag = (e.target as HTMLElement | null)?.tagName;
-    if (e.key === "Escape") { onback(); return; }
-    if (!video || tag === "INPUT") return;
+    if (e.key === "Escape") { if (full) setFull(false); else onback(); return; }
+    if (tag === "INPUT") return;
+    if (e.key === "f" || e.key === "F") { setFull(!full); e.preventDefault(); return; }
+    if (!video) return;
     if (e.key === "ArrowLeft") { video.currentTime = Math.max(0, video.currentTime - 10); e.preventDefault(); }
     else if (e.key === "ArrowRight") { video.currentTime += 10; e.preventDefault(); }
     else if (e.key === " " && tag !== "BUTTON") { if (video.paused) video.play().catch(() => {}); else video.pause(); e.preventDefault(); }
   }
   onMount(() => { closeBtn?.focus(); section?.scrollIntoView({ block: "center" }); resolve(); });
-  onDestroy(() => { alive = false; });
+  onDestroy(() => {
+    alive = false;
+    if (full) getCurrentWindow().setFullscreen(false).catch(() => {}); // never leave the window fullscreen behind
+  });
 </script>
 
 <svelte:window onkeydown={key} />
 
-<section aria-label="Player" bind:this={section}>
-  <button bind:this={closeBtn} onclick={onback}>Close player</button>
-  <span>{stream.name} [{streamLabel(stream)}]</span>
+<section aria-label="Player" bind:this={section} class:full>
+  {#if !full}
+    <div class="bar">
+      <button bind:this={closeBtn} onclick={onback}>Close player</button>
+      <button aria-pressed={full} onclick={() => setFull(!full)}>Fullscreen</button>
+      <span>{stream.name} [{streamLabel(stream)}]</span>
+    </div>
+  {/if}
   {#if error}<p role="alert">{error}</p>{/if}
   {#if !embed}<p role="alert">The embedded player address is not allowed.</p>{/if}
   {#if frame && embed}
-    <iframe title="Embedded player" src={embed} allowfullscreen sandbox="allow-scripts allow-same-origin allow-presentation" style="width:100%;aspect-ratio:16/9;border:0"></iframe>
+    <iframe class="media frame" title="Embedded player" src={embed} allowfullscreen sandbox="allow-scripts allow-same-origin allow-presentation"></iframe>
   {:else if src}
     <!-- ponytail: src.mime unused, no HLS path; add hls.js only if a probe shows m3u8 sources -->
     <!-- svelte-ignore a11y_media_has_caption -->
-    <video bind:this={video} src={src.url} controls autoplay playsinline onerror={onVideoError} onplaying={() => (retried = false)} onloadedmetadata={() => { if (at && video) video.currentTime = at; at = 0; }} style="width:100%;max-height:80vh"></video>
+    <video class="media" bind:this={video} src={src.url} controls controlslist="nofullscreen" autoplay playsinline onerror={onVideoError} onplaying={() => (retried = false)} onloadedmetadata={() => { if (at && video) video.currentTime = at; at = 0; }}></video>
   {:else if !frame && !error}
     <p role="status">Loading…</p>
   {/if}
-  {#if !frame}<button disabled={!embed} onclick={() => (frame = true)}>Use embedded player instead</button>{/if}
+  {#if !frame && !full}<button disabled={!embed} onclick={() => (frame = true)}>Use embedded player instead</button>{/if}
 </section>
+
+<style>
+  .media { width: 100%; max-height: 80vh; }
+  .frame { aspect-ratio: 16 / 9; border: 0; }
+  .full { position: fixed; inset: 0; z-index: 1000; background: #000; display: flex; flex-direction: column; padding: 0.5rem; box-sizing: border-box; }
+  .full .media { flex: 1; min-height: 0; max-height: none; height: 100%; }
+  .full video { object-fit: contain; }
+  .full .frame { aspect-ratio: auto; }
+</style>
