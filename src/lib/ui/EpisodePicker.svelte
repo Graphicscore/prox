@@ -1,8 +1,9 @@
 <script lang="ts">
+  import Loading from "./Loading.svelte";
   import { streamLabel, type Episode, type PageLink, type Stream } from "../api";
   import { activeLang, episodesWith, languagesOf, pageWindow, streamThumb } from "./helpers";
-  let { episodes, pages, epPage, selected, streams, onpage, onpick, onplay, onreminder, lang = $bindable("") }: {
-    episodes: Episode[]; pages: PageLink[]; epPage: number; selected: { ep: number; lang: string } | null; streams: Stream[];
+  let { episodes, pages, epPage, selected, streams, loadingPage = 0, loadingStreams = false, onpage, onpick, onplay, onreminder, lang = $bindable("") }: {
+    episodes: Episode[]; pages: PageLink[]; epPage: number; loadingPage?: number; loadingStreams?: boolean; selected: { ep: number; lang: string } | null; streams: Stream[];
     onpage: (p: number) => void; onpick: (ep: number, lang: string) => void; onplay: (s: Stream) => void; onreminder: (which: "this" | "next") => void; lang?: string;
   } = $props();
   const langs = $derived(languagesOf(episodes));
@@ -24,7 +25,8 @@
       {/each}
     {/if}
   </div>
-  <div class="tiles">
+  {#if loadingPage}<Loading compact label="Loading episodes…" />{/if}
+  <div class="tiles" class:busy={loadingPage}>
     {#each nums as n (n)}
       <button class="tile" aria-pressed={selected?.ep === n && selected?.lang === active} onclick={() => onpick(n, active)}>{n}</button>
     {:else}<p class="muted">No episodes</p>{/each}
@@ -32,12 +34,12 @@
   {#if selected}
     <h3>Streams for episode {selected.ep} ({selected.lang})</h3>
     {@const thumb = streams.map(streamThumb).find(Boolean)}
-    {#if thumb}<img class="thumb" src={thumb} alt="Episode {selected.ep} preview" />{/if}
-    <div class="streams">
+    {#if thumb}<img class="thumb fade-in" src={thumb} alt="Episode {selected.ep} preview" />{/if}
+    <div class="streams fade-in">
       {#each streams as s}
         {@const label = streamLabel(s)}
         <button class="stream" disabled={label === "Unsupported"} onclick={() => onplay(s)}>▶ {s.name} <span class="badge {label.toLowerCase()}">{label}</span></button>
-      {:else}<p class="muted">No streams (yet)</p>{/each}
+      {:else}{#if loadingStreams}<Loading compact label="Loading streams…" />{:else}<p class="muted">No streams (yet)</p>{/if}{/each}
       <span class="sep"></span>
       <button onclick={() => onreminder("this")}>Watchlist: this episode</button>
       <button onclick={() => onreminder("next")}>Watchlist: next episode</button>
@@ -61,5 +63,6 @@
   .badge.normal { background: var(--accent); }
   .badge.airing { background: var(--good); }
   .thumb { display: block; width: min(16rem, 100%); aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius); background: var(--bg-3); margin-bottom: 10px; }
+  .busy { opacity: 0.45; transition: opacity 0.15s ease; }
   .muted { color: var(--muted); }
 </style>

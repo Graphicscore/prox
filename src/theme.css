@@ -40,3 +40,12 @@ form label { display: block; margin: 0.5rem 0; }
 @media (pointer: coarse) {
   button, input:not([type="checkbox"]):not([type="radio"]) { min-height: 44px; }
 }
+/* Motion: smooth scrolling and short fades; off when the system asks for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  html, .strip { scroll-behavior: smooth; }
+  button { transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.15s ease; }
+  .view { animation: view-in 0.22s ease-out; }
+  .fade-in { animation: fade-in 0.2s ease-out; }
+}
+@keyframes view-in { from { opacity: 0; } } /* opacity only: a transform would trap the fixed fullscreen player */
+@keyframes fade-in { from { opacity: 0; } }

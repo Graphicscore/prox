@@ -2,9 +2,11 @@
   import { onMount } from "svelte";
   import { api, describeError, streamLabel, type Episode, type Info, type ListEntry, type PageLink, type Stream, type TitleAction } from "./api";
   import { pushBack } from "./back";
+  import { saveRecent } from "./recent";
   import Player from "./Player.svelte";
   import Hero from "./ui/Hero.svelte";
   import EpisodePicker from "./ui/EpisodePicker.svelte";
+  import Loading from "./ui/Loading.svelte";
   import { activeLang, episodesWith, nextEpisode } from "./ui/helpers";
   let { id, onback, onauth }: { id: number; onback: () => void; onauth: () => void } = $props();
   let info = $state<Info | null>(null), episodes = $state<Episode[]>([]), pages = $state<PageLink[]>([]);
@@ -15,6 +17,8 @@
   // Remote users land on Watch instead of nothing (Home/Search are hidden, so focus fell back to <body>).
   let watchBtn = $state<HTMLButtonElement>();
   $effect(() => { if (watchBtn && episodes.length && document.activeElement === document.body) watchBtn.focus({ preventScroll: true }); });
+  // Every started episode (Watch, a stream, Next) moves this title to the front of Home's "Recent" row.
+  $effect(() => { if (playing && selected && info) saveRecent({ id, title: info.title, ep: selected.ep, at: Date.now() }); });
   const STATES = ["Geschaut", "Am Schauen", "Wird noch geschaut", "Abgebrochen"];
   let entry = $state<ListEntry | null>(null), message = $state(""), busy = false;
   async function loadEntry() {
@@ -33,8 +37,10 @@
   }
   const titleAct = (a: TitleAction) => act(() => api.titleAction(id, a));
   function fail(x: unknown) { if (x === "NotLoggedIn") onauth(); else error = describeError(x); }
+  let loadingPage = $state(0), loadingStreams = $state(false); // loadingPage: the page being fetched (0 = none)
   async function loadPage(p: number) {
     const cur = id;
+    loadingPage = p;
     try {
       const l = await api.episodes(cur, p);
       if (cur !== id) return;
@@ -42,6 +48,7 @@
       if (l.pages.length) pages = l.pages;
       error = "";
     } catch (x) { fail(x); }
+    finally { if (cur === id && loadingPage === p) loadingPage = 0; }
   }
   $effect(() => {
     const cur = id;
@@ -59,10 +66,12 @@
   async function pick(ep: number, l: string) {
     selected = { ep, lang: l }; selEps = episodes; selPage = epPage; streams = []; playing = null; error = "";
     const mine = selected; // drop the result if another pick happened meanwhile
+    loadingStreams = true;
     try {
       const r = await api.streams(id, ep, l);
       if (selected === mine) streams = r;
     } catch (x) { if (selected === mine && x !== "Parse:streams") fail(x); }
+    finally { if (selected === mine) loadingStreams = false; }
   }
   /** Play the first supported stream of the first episode in the chosen (or first available) language. */
   async function watch() {
@@ -93,7 +102,7 @@
       if (selected !== cur || cid !== id) return; // user picked something else meanwhile
       const s = r.find((x) => streamLabel(x) !== "Unsupported");
       if (!s) { error = "No playable stream for episode " + ep; return; }
-      selected = { ep, lang: cur.lang }; selEps = eps; selPage = page; streams = r; playing = s;
+      selected = { ep, lang: cur.lang }; selEps = eps; selPage = page; streams = r; loadingStreams = false; playing = s;
     } catch (x) { fail(x); }
   }
   function watched() {
@@ -104,15 +113,16 @@
 </script>
 
 {#if error}<p role="alert" class="err">{error}</p>{/if}
+{#if !info && !error}<Loading full />{/if}
 {#if info}
   <Hero {id} title={info.title} {meta}>
     <button class="primary" bind:this={watchBtn} onclick={watch} disabled={!episodes.length}>▶ Watch</button>
-    <button aria-pressed={entry?.state === 2} onclick={() => titleAct("note")}>Note</button>
+    <button aria-pressed={!!entry} onclick={() => titleAct("note")}>{entry ? "Saved" : "Save"}</button>
     <button onclick={() => titleAct("favor")}>Favorite</button>
     <button aria-pressed={entry?.state === 0} onclick={() => titleAct("finish")}>Finished</button>
   </Hero>
   {#if message}<p role="status" class="msg">{message}</p>{/if}
-  <EpisodePicker {episodes} {pages} {epPage} {selected} {streams} bind:lang onpage={loadPage} onpick={pick} onplay={(s) => { playing = s; playKey++; }} onreminder={(w) => { const s = selected; if (s) act(() => api.reminder(id, s.ep, s.lang, w)); }} />
+  <EpisodePicker {episodes} {pages} {epPage} {selected} {streams} {loadingPage} {loadingStreams} bind:lang onpage={loadPage} onpick={pick} onplay={(s) => { playing = s; playKey++; }} onreminder={(w) => { const s = selected; if (s) act(() => api.reminder(id, s.ep, s.lang, w)); }} />
   {#if playing}
     {#key playKey}
       <Player stream={playing} onback={() => (playing = null)} {onauth} {hasNext} onnext={playNext} onwatched={watched} />

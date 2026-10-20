@@ -71,7 +71,6 @@
   }
   function key(e: KeyboardEvent) {
     const tag = (e.target as HTMLElement | null)?.tagName;
-    if (e.key === "Escape") { if (full && !tv) setFull(false); else onback(); return; }
     if (tag === "INPUT") return;
     if (e.key === "f" || e.key === "F") { setFull(!full); e.preventDefault(); return; }
     if (!video) return;
