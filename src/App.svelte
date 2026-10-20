@@ -1,15 +1,31 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { api } from "./lib/api";
   import Login from "./lib/Login.svelte";
+  import Home from "./lib/Home.svelte";
   import Search from "./lib/Search.svelte";
-  import Info from "./lib/Info.svelte";
+  import Title from "./lib/Title.svelte";
+  import Shell from "./lib/ui/Shell.svelte";
   import { exit, onBackButtonPress } from "@tauri-apps/api/app";
   import { currentTv } from "./lib/tv";
   import { handleBack } from "./lib/back";
   import { installDpad } from "./lib/dpad";
   import { installTvInputs } from "./lib/tvInput";
-  let screen = $state<"boot" | "login" | "search" | "info">("boot"), id = $state(0), warning = $state("");
+  type Screen = "boot" | "login" | "home" | "search" | "info";
+  let screen = $state<Screen>("boot"), from = $state<"home" | "search">("home"), id = $state(0), warning = $state("");
+  // Home and Search stay mounted (hidden) while a title is open: Back keeps their data, scroll and focused poster.
+  let seen = $state({ home: false, search: false }), returnFocus: HTMLElement | null = null;
+  $effect(() => { if (screen === "home" || screen === "search") seen[screen] = true; });
+  const startScreen = (): Screen => {
+    if (import.meta.env.DEV) { // dev only: ?screen=home|search|title&id=N for screenshots in the demo mode
+      const q = new URLSearchParams(location.search);
+      const s = q.get("screen");
+      if (q.get("id")) id = Number(q.get("id"));
+      if (s === "search") return "search";
+      if (s === "title") return "info";
+    }
+    return "home";
+  };
   onMount(() => {
     document.documentElement.classList.toggle("tv", currentTv());
     const offDpad = installDpad();
@@ -19,30 +35,32 @@
     onBackButtonPress(() => { if (!handleBack()) exit(0).catch(() => {}); })
       .then((l) => { if (gone) void l.unregister(); else offBack = () => void l.unregister(); })
       .catch(() => {});
-    (async () => { screen = (await api.autoLogin().catch(() => false)) ? "search" : "login"; })();
+    (async () => {
+      const ok = await api.autoLogin().catch(() => false);
+      screen = ok && !(import.meta.env.DEV && new URLSearchParams(location.search).get("screen") === "login") ? startScreen() : "login"; // dev: ?screen=login shows Login
+    })();
     return () => { gone = true; offDpad(); offInputs(); offBack?.(); };
   });
-  async function logout() { await api.logout(); warning = ""; screen = "login"; }
+  async function logout() { await api.logout(); warning = ""; seen = { home: false, search: false }; screen = "login"; }
+  const open = (i: number) => {
+    returnFocus = document.activeElement as HTMLElement | null;
+    from = screen === "search" ? "search" : "home"; id = i; screen = "info";
+  };
+  async function back() { screen = from; await tick(); if (returnFocus?.isConnected) returnFocus.focus(); }
+  const auth = () => (screen = "login");
 </script>
 
 {#if screen === "login"}
-  <Login onok={(w) => { warning = w ?? ""; screen = "search"; }} />
+  <Login onok={(w) => { warning = w ?? ""; screen = "home"; }} />
 {:else if screen !== "boot"}
-  <nav><button onclick={() => (screen = "search")}>Search</button> <button onclick={logout}>Log out</button></nav>
-  {#if warning}<p role="status">{warning}</p>{/if}
-  {#if screen === "search"}
-    <Search onopen={(i) => { id = i; screen = "info"; }} onauth={() => (screen = "login")} />
-  {:else}
-    <Info {id} onback={() => (screen = "search")} onauth={() => (screen = "login")} />
-  {/if}
+  <Shell tab={screen === "info" ? null : screen} onnav={(t) => (screen = t)} onlogout={logout}>
+    {#if warning}<p role="status" class="warn">{warning}</p>{/if}
+    {#if seen.home}<div hidden={screen !== "home"}><Home onopen={open} onauth={auth} /></div>{/if}
+    {#if seen.search}<div hidden={screen !== "search"}><Search onopen={open} onauth={auth} /></div>{/if}
+    {#if screen === "info"}<Title {id} onback={back} onauth={auth} />{/if}
+  </Shell>
 {/if}
 
 <style>
-  :global(body) { background: #111; color: #eee; font-family: system-ui, sans-serif; margin: 1rem; }
-  :global(button:focus-visible, input:focus-visible, a:focus-visible) { outline: 3px solid #4af; outline-offset: 2px; }
-  :global(html.tv) { font-size: 24px; }
-  :global(html.tv body) { margin: 5vh 5vw; }
-  :global(html.tv button:focus-visible, html.tv input:focus-visible) { outline-width: 5px; }
-  @media (pointer: coarse) { :global(button), :global(input:not([type="checkbox"]):not([type="radio"])) { min-height: 44px; } }
-  :global(form label) { display: block; margin: 0.5rem 0; }
+  .warn { padding: 8px var(--pad); color: var(--muted); }
 </style>

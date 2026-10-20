@@ -54,6 +54,23 @@ pub async fn search(app: State<'_, App>, query: String, page: Option<u32>) -> Re
     Ok(parse_search_page(&html))
 }
 
+/// Home rows: kind -> the Proxer list page (same `tr.entry` table as search).
+fn list_path(kind: &str) -> Option<&'static str> {
+    match kind {
+        "airing" => Some("/anime/airing"),
+        "rating" => Some("/anime/animeseries/rating/all"),
+        "clicks" => Some("/anime/animeseries/clicks/all"),
+        _ => None,
+    }
+}
+
+#[tauri::command]
+pub async fn get_list(app: State<'_, App>, kind: String) -> Result<SearchPage, String> {
+    let path = list_path(&kind).ok_or_else(|| "Unsupported".to_string())?;
+    let html = app.client.get(path).await.map_err(err)?;
+    Ok(parse_search_page(&html))
+}
+
 #[tauri::command]
 pub async fn get_info(app: State<'_, App>, id: u32) -> Result<Info, String> {
     Ok(parse_info(&app.client.get(&format!("/info/{id}")).await.map_err(err)?))
@@ -104,6 +121,15 @@ mod tests {
         assert_eq!(url_encode("é"), "%C3%A9");
         assert_eq!(url_encode("外"), "%E5%A4%96");
         assert_eq!(url_encode("Az09-_."), "Az09-_.");
+    }
+
+    #[test]
+    fn list_paths() {
+        assert_eq!(list_path("airing"), Some("/anime/airing"));
+        assert_eq!(list_path("rating"), Some("/anime/animeseries/rating/all"));
+        assert_eq!(list_path("clicks"), Some("/anime/animeseries/clicks/all"));
+        assert_eq!(list_path("../etc"), None);
+        assert_eq!(list_path(""), None);
     }
 
     #[test]

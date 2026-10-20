@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { makeDemoApi } from "./demo";
 
 export type SearchHit = { id: number; title: string; genres: string[]; kind: string; rating: number | null };
 export type Info = { title: string; fields: Record<string, string> };
@@ -29,14 +30,21 @@ export function describeError(x: unknown): string {
   return "Something went wrong";
 }
 
-export const api = {
+export type ListKind = "airing" | "rating" | "clicks";
+
+const realApi = {
   /** resolves true if credentials were saved to the keychain (or remember=false) */
   login: (username: string, password: string, remember: boolean) => invoke<boolean>("login", { username, password, remember }),
   autoLogin: () => invoke<boolean>("auto_login"),
   logout: () => invoke<void>("logout"),
   search: (query: string, page = 1) => invoke<SearchPage>("search", { query, page }),
+  getList: (kind: ListKind) => invoke<SearchPage>("get_list", { kind }),
   info: (id: number) => invoke<Info>("get_info", { id }),
   episodes: (id: number, page = 1) => invoke<EpisodeList>("get_episodes", { id, page }),
   streams: (id: number, episode: number, lang: string) => invoke<Stream[]>("get_streams", { id, episode, lang }),
   resolve: (stream: Stream) => invoke<MediaSource>("resolve_stream", { stream }),
 };
+
+export type Api = typeof realApi;
+// Dev only, explicit opt-in: `npm run dev` + `?demo` in the URL uses fake data so screens render without a login.
+export const api: Api = import.meta.env.DEV && new URLSearchParams(location.search).has("demo") ? makeDemoApi() : realApi;
