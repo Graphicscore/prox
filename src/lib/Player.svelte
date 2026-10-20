@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { pushBack } from "./back";
+  import { setDpadRoot, setSeekMode } from "./dpad";
   import { api, describeError, safeEmbedUrl, streamLabel, type MediaSource, type Stream } from "./api";
   let { stream, onback, onauth }: { stream: Stream; onback: () => void; onauth: () => void } = $props();
   let src = $state<MediaSource | null>(null), error = $state(""), frame = $state(false), full = $state(false);
@@ -37,11 +39,18 @@
     if (!video) return;
     if (e.key === "ArrowLeft") { video.currentTime = Math.max(0, video.currentTime - 10); e.preventDefault(); }
     else if (e.key === "ArrowRight") { video.currentTime += 10; e.preventDefault(); }
-    else if (e.key === " " && tag !== "BUTTON") { if (video.paused) video.play().catch(() => {}); else video.pause(); e.preventDefault(); }
+    else if ((e.key === " " && tag !== "BUTTON") || (e.key === "Enter" && tag === "VIDEO")) { if (video.paused) video.play().catch(() => {}); else video.pause(); e.preventDefault(); }
   }
-  onMount(() => { closeBtn?.focus(); section?.scrollIntoView({ block: "center" }); resolve(); });
+  onMount(() => {
+    closeBtn?.focus(); section?.scrollIntoView({ block: "center" }); resolve();
+    setSeekMode(true);
+    return pushBack(() => { if (full) setFull(false); else onback(); return true; });
+  });
+  $effect(() => { setDpadRoot(full ? section : null); });
   onDestroy(() => {
     alive = false;
+    setDpadRoot(null);
+    setSeekMode(false);
     if (full) getCurrentWindow().setFullscreen(false).catch(() => {}); // never leave the window fullscreen behind
   });
 </script>
@@ -63,7 +72,7 @@
   {:else if src}
     <!-- ponytail: src.mime unused, no HLS path; add hls.js only if a probe shows m3u8 sources -->
     <!-- svelte-ignore a11y_media_has_caption -->
-    <video class="media" bind:this={video} src={src.url} controls controlslist="nofullscreen" autoplay playsinline onerror={onVideoError} onplaying={() => (retried = false)} onloadedmetadata={() => { if (at && video) video.currentTime = at; at = 0; }}></video>
+    <video class="media" tabindex="0" bind:this={video} src={src.url} controls controlslist="nofullscreen" autoplay playsinline onerror={onVideoError} onplaying={() => { retried = false; video?.focus(); }} onloadedmetadata={() => { if (at && video) video.currentTime = at; at = 0; }}></video>
   {:else if !frame && !error}
     <p role="status">Loading…</p>
   {/if}

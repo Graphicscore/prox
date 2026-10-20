@@ -1,11 +1,14 @@
 <script lang="ts">
   import { api, streamLabel, describeError, type Info, type Episode, type PageLink, type Stream } from "./api";
+  import { onMount } from "svelte";
   import Player from "./Player.svelte";
+  import { pushBack } from "./back";
   let { id, onback, onauth }: { id: number; onback: () => void; onauth: () => void } = $props();
   let info = $state<Info | null>(null), episodes = $state<Episode[]>([]), pages = $state<PageLink[]>([]);
   let playing = $state<Stream | null>(null);
   let epPage = $state(1), streams = $state<Stream[]>([]);
   let selected = $state<{ ep: number; lang: string } | null>(null), error = $state("");
+  onMount(() => pushBack(() => { onback(); return true; }));
   function fail(x: unknown) { if (x === "NotLoggedIn") onauth(); else error = describeError(x); }
   async function loadPage(p: number) {
     const cur = id;

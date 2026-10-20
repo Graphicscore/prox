@@ -29,7 +29,7 @@ const visible = (e: HTMLElement) => { const r = e.getBoundingClientRect(); retur
 export function moveFocus(dir: Dir, root: ParentNode = document): boolean {
   const cur = document.activeElement as HTMLElement | null;
   const all = [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(visible);
-  if (!cur || cur === document.body) { all[0]?.focus(); return all.length > 0; }
+  if (!cur || cur === document.body) { all[0]?.focus(); all[0]?.scrollIntoView({ block: "nearest" }); return all.length > 0; }
   const els = all.filter((e) => e !== cur);
   const i = pickNext(boxOf(cur), els.map(boxOf), dir);
   if (i < 0) return false;
