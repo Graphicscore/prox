@@ -1,0 +1,82 @@
+name: build
+
+# Builds the latest commit of master for Linux (deb + AppImage) and Android (debug APKs per ABI).
+# Download the files from the run's "Artifacts" section.
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libdbus-1-dev libssl-dev
+      - run: npm ci
+      - run: npm test
+      - run: npm run check
+      - run: cargo test --workspace
+
+  linux:
+    needs: test
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libappindicator3-dev \
+            librsvg2-dev patchelf libdbus-1-dev libssl-dev file
+      - run: npm ci
+      - run: npm run tauri build -- --bundles deb,appimage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1 # linuxdeploy without FUSE on the runner
+      - uses: actions/upload-artifact@v4
+        with:
+          name: proxer-linux-${{ github.sha }}
+          path: |
+            target/release/bundle/deb/*.deb
+            target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+
+  android:
+    needs: test
+    runs-on: ubuntu-22.04
+    env:
+      NDK_VERSION: 28.2.13676358
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+      - name: Android NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+      - run: npm ci
+      # Debug-signed so the APKs install directly (no release keystore in the repo). One APK per ABI:
+      # arm64 for most phones/TVs, armv7 for older 32-bit TVs, x86_64 for emulators.
+      - run: npm run tauri android build -- --debug --apk --split-per-abi --target aarch64 armv7 x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: proxer-android-${{ github.sha }}
+          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
