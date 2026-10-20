@@ -37,3 +37,11 @@ test("up from a tile on the right lands in the short chip row above, not the wid
   const watch = box(700, 100, 150, 50); // horizontally aligned, but a row further away
   assert.equal(pickNext(tile, [watch, ...chips], "up"), 3);
 });
+
+test("down from a top-bar tab skips a slightly offset button in the same row", () => {
+  const tab = { left: 160, top: 8, right: 226, bottom: 40 };
+  const logout = { left: 880, top: 7.01, right: 940, bottom: 41.02 }; // taller button, center 1/128 px lower
+  const hero = { left: 170, top: 300, right: 260, bottom: 340 };
+  assert.equal(pickNext(tab, [logout, hero], "down"), 1);
+  assert.equal(pickNext(tab, [logout], "down"), -1);
+});

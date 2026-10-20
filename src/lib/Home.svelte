@@ -8,8 +8,9 @@
   let { onopen, onauth, active = true }: { onopen: (id: number) => void; onauth: () => void; active?: boolean } = $props();
 
   type Row = { kind: ListKind | "mine" | "recent"; title: string; status: "loading" | "ready" | "error"; hits: SearchHit[]; error: string };
+  const recentHits = (): SearchHit[] => loadRecent().map((r) => ({ id: r.id, title: r.title, genres: [], kind: "", rating: null, badge: `Ep ${r.ep}` }));
   let rows = $state<Row[]>([
-    { kind: "recent", title: "Recent", status: "loading", hits: [], error: "" },
+    { kind: "recent", title: "Recent", status: "ready", hits: recentHits(), error: "" }, // local: no loading state
     { kind: "mine", title: "My list", status: "loading", hits: [], error: "" },
     { kind: "airing", title: "Airing now", status: "loading", hits: [], error: "" },
     { kind: "rating", title: "Top rated", status: "loading", hits: [], error: "" },
@@ -23,8 +24,7 @@
     try { r.hits = r.kind === "recent" ? recentHits() : r.kind === "mine" ? myListHits(await api.myList()) : (await api.getList(r.kind)).hits; r.status = "ready"; r.error = ""; }
     catch (x) { if (x === "NotLoggedIn") onauth(); else if (!quiet) { r.error = describeError(x); r.status = "error"; } }
   }
-  const recentHits = (): SearchHit[] => loadRecent().map((r) => ({ id: r.id, title: r.title, genres: [], kind: "", rating: null, badge: `Ep ${r.ep}` }));
-  onMount(() => { for (const r of rows) load(r); }); // once; not an $effect, load() writes the state it would track
+  onMount(() => { for (const r of rows) if (r.kind !== "recent") load(r); }); // once; not an $effect, load() writes the state it would track
   // Home stays mounted behind an open title: back on Home, refresh Recent and My list (playing/Save/Finished change them).
   let wasActive = true, lastId = 0, root = $state<HTMLElement>();
   $effect(() => { const a = active; untrack(() => { if (a && !wasActive) Promise.all(rows.filter((r) => r.kind === "recent" || r.kind === "mine").map((r) => load(r, true))).then(refocus); wasActive = a; }); });
@@ -33,7 +33,8 @@
   async function refocus() {
     await tick();
     const a = document.activeElement;
-    if (!active || (a && a !== document.body && a.isConnected)) return;
+    if (!active) return;
+    if (a && a !== document.body && a.isConnected) { (a as HTMLElement).scrollIntoView({ block: "nearest" }); return; } // a new Recent row may have pushed it down
     (root?.querySelector<HTMLElement>(`[data-id="${lastId}"]`) ?? root?.querySelector<HTMLElement>(".poster"))?.focus(); // first match: Recent, then My list
   }
 </script>

@@ -47,5 +47,5 @@ form label { display: block; margin: 0.5rem 0; }
   .view { animation: view-in 0.22s ease-out; }
   .fade-in { animation: fade-in 0.2s ease-out; }
 }
-@keyframes view-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes view-in { from { opacity: 0; } } /* opacity only: a transform would trap the fixed fullscreen player */
 @keyframes fade-in { from { opacity: 0; } }

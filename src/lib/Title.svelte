@@ -102,7 +102,7 @@
       if (selected !== cur || cid !== id) return; // user picked something else meanwhile
       const s = r.find((x) => streamLabel(x) !== "Unsupported");
       if (!s) { error = "No playable stream for episode " + ep; return; }
-      selected = { ep, lang: cur.lang }; selEps = eps; selPage = page; streams = r; playing = s;
+      selected = { ep, lang: cur.lang }; selEps = eps; selPage = page; streams = r; loadingStreams = false; playing = s;
     } catch (x) { fail(x); }
   }
   function watched() {

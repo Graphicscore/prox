@@ -3,6 +3,8 @@ export type Box = { left: number; top: number; right: number; bottom: number };
 
 const cx = (b: Box) => (b.left + b.right) / 2;
 const cy = (b: Box) => (b.top + b.bottom) / 2;
+/** Up/Down never moves sideways: buttons of different heights in one row have (almost) the same center. */
+const sameRow = (a: Box, b: Box) => Math.abs(cy(a) - cy(b)) < Math.min(a.bottom - a.top, b.bottom - b.top) / 2;
 
 /** Index of the best candidate in direction `dir` from `from`, or -1. A candidate must lie beyond the
  *  origin's center in that direction. Left/right: score = gap along the axis + 2 x offset across it (lower wins).
@@ -14,8 +16,8 @@ export function pickNext(from: Box, cands: Box[], dir: Dir): number {
     let along: number, across: number;
     if (dir === "right") { if (cx(c) <= cx(from)) return; along = Math.max(0, c.left - from.right); across = Math.abs(cy(c) - cy(from)); }
     else if (dir === "left") { if (cx(c) >= cx(from)) return; along = Math.max(0, from.left - c.right); across = Math.abs(cy(c) - cy(from)); }
-    else if (dir === "down") { if (cy(c) <= cy(from)) return; along = Math.max(0, c.top - from.bottom); across = Math.abs(cx(c) - cx(from)); }
-    else { if (cy(c) >= cy(from)) return; along = Math.max(0, from.top - c.bottom); across = Math.abs(cx(c) - cx(from)); }
+    else if (dir === "down") { if (sameRow(c, from) || cy(c) <= cy(from)) return; along = Math.max(0, c.top - from.bottom); across = Math.abs(cx(c) - cx(from)); }
+    else { if (sameRow(c, from) || cy(c) >= cy(from)) return; along = Math.max(0, from.top - c.bottom); across = Math.abs(cx(c) - cx(from)); }
     scored.push({ i, along, across });
   });
   if (!scored.length) return -1;
@@ -45,7 +47,7 @@ export function moveFocus(dir: Dir, root: ParentNode = document): boolean {
   const els = all.filter((e) => e !== cur);
   const i = pickNext(boxOf(cur), els.map(boxOf), dir);
   if (i < 0) return false;
-  els[i].focus();
-  els[i].scrollIntoView({ block: "nearest" });
+  els[i].focus({ preventScroll: true }); // the (smooth) scrollIntoView below does the scrolling
+  els[i].scrollIntoView({ block: "nearest", inline: "nearest" });
   return true;
 }

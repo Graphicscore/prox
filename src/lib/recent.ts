@@ -16,3 +16,6 @@ export function loadRecent(): Recent[] {
 export function saveRecent(r: Recent) {
   try { localStorage.setItem(KEY, JSON.stringify(addRecent(loadRecent(), r))); } catch { /* storage unavailable */ }
 }
+
+/** Logout: the next account on this device must not see this history. */
+export function clearRecent() { try { localStorage.removeItem(KEY); } catch { /* storage unavailable */ } }

@@ -8,6 +8,7 @@
   import Title from "./lib/Title.svelte";
   import Shell from "./lib/ui/Shell.svelte";
   import Loading from "./lib/ui/Loading.svelte";
+  import { clearRecent } from "./lib/recent";
   import { exit, onBackButtonPress } from "@tauri-apps/api/app";
   import { currentTv } from "./lib/tv";
   import { handleBack, pushBack } from "./lib/back";
@@ -42,7 +43,7 @@
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || !(e.key === "Escape" || e.key === "BrowserBack" || (e.altKey && e.key === "ArrowLeft"))) return;
       const t = e.target as HTMLElement | null;
-      if (e.key === "Escape" && (t?.tagName === "INPUT" || t?.tagName === "TEXTAREA")) { t.blur(); return; }
+      if (e.key === "Escape" && (t?.tagName === "INPUT" || t?.tagName === "TEXTAREA")) { e.preventDefault(); return; } // Esc in a field is not Back
       if (handleBack()) e.preventDefault();
     };
     const onMouse = (e: MouseEvent) => { if (e.button === 3 && handleBack()) e.preventDefault(); };
@@ -61,7 +62,7 @@
     })();
     return () => { gone = true; offDpad(); offInputs(); offBack?.(); offTabs(); window.removeEventListener("keydown", onKey); window.removeEventListener("mouseup", onMouse); };
   });
-  async function logout() { await api.logout(); warning = ""; seen = { home: false, search: false, calendar: false }; screen = "login"; }
+  async function logout() { await api.logout(); clearRecent(); warning = ""; seen = { home: false, search: false, calendar: false }; screen = "login"; }
   const open = (i: number) => {
     returnFocus = document.activeElement as HTMLElement | null;
     from = screen === "search" || screen === "calendar" ? screen : "home"; id = i; screen = "info";
