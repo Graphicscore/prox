@@ -11,7 +11,8 @@
   import Toasts from "./lib/ui/Toasts.svelte";
   import { toast } from "./lib/toast.svelte";
   import { clearRecent } from "./lib/recent";
-  import { exit, onBackButtonPress } from "@tauri-apps/api/app";
+  import { exit, getVersion, onBackButtonPress } from "@tauri-apps/api/app";
+  import { versionLabel } from "./lib/ui/helpers";
   import { currentTv } from "./lib/tv";
   import { handleBack, pushBack } from "./lib/back";
   import { installDpad } from "./lib/dpad";
@@ -73,7 +74,8 @@
   const auth = () => (screen = "login");
   // Update button: check the latest GitHub release; download it and hand it to the installer (Android) or swap
   // the AppImage and restart (Linux). Without a self-install path (deb, dev build) point to the release page.
-  let updating = $state(false);
+  let updating = $state(false), version = $state("");
+  getVersion().then((v) => (version = versionLabel(v))).catch(() => {}); // no Tauri (demo in a browser): no label
   async function update() {
     if (updating) return;
     updating = true;
@@ -96,9 +98,9 @@
 {#if screen === "boot"}
   <Loading full label="Signing in…" />
 {:else if screen === "login"}
-  <Login onok={(w) => { warning = w ?? ""; screen = "home"; }} onupdate={update} {updating} />
+  <Login onok={(w) => { warning = w ?? ""; screen = "home"; }} onupdate={update} {updating} {version} />
 {:else}
-  <Shell tab={screen === "info" ? null : screen} onnav={(t) => (screen = t)} onlogout={logout} onupdate={update} {updating}>
+  <Shell tab={screen === "info" ? null : screen} onnav={(t) => (screen = t)} onlogout={logout} onupdate={update} {updating} {version}>
     {#if warning}<p role="status" class="warn">{warning}</p>{/if}
     {#if seen.home}<div class="view" hidden={screen !== "home"}><Home active={screen === "home"} onopen={open} onauth={auth} /></div>{/if}
     {#if seen.search}<div class="view" hidden={screen !== "search"}><Search onopen={open} onauth={auth} /></div>{/if}

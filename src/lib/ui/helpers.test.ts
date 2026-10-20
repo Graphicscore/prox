@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activeLang, pageFor, resumeEpisode, fmtTime, streamThumb, calendarDays, pageWindow, coverUrl, episodesWith, languagesOf, myListHits, nearEnd, nextEpisode } from "./helpers.ts";
+import { activeLang, versionLabel, pageFor, resumeEpisode, fmtTime, streamThumb, calendarDays, pageWindow, coverUrl, episodesWith, languagesOf, myListHits, nearEnd, nextEpisode } from "./helpers.ts";
 
 const eps = [
   { number: 2, langs: ["gersub", "engsub"] },
@@ -116,4 +116,9 @@ test("pageFor finds the page by its label range", () => {
   assert.equal(pageFor(P, 120), 3);
   assert.equal(pageFor(P, 121), null);
   assert.equal(pageFor([], 3), null);
+});
+
+test("versionLabel", () => {
+  assert.equal(versionLabel("0.1.42"), "Build 42 · v0.1.42");
+  assert.equal(versionLabel("0.1.0"), "Dev build · v0.1.0");
 });

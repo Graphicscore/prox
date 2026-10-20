@@ -1,6 +1,6 @@
 <script lang="ts">
   import { api, describeError } from "./api";
-  let { onok, onupdate, updating = false }: { onok: (warning?: string) => void; onupdate?: () => void; updating?: boolean } = $props();
+  let { onok, onupdate, updating = false, version = "" }: { onok: (warning?: string) => void; onupdate?: () => void; updating?: boolean; version?: string } = $props();
   let username = $state(""), password = $state(""), remember = $state(true), error = $state(""), busy = $state(false);
   async function submit(e: Event) {
     e.preventDefault();
@@ -26,6 +26,7 @@
     {#if error}<p role="alert">{error}</p>{/if}
     <button class="primary">{busy ? "Signing in…" : "Log in"}</button>
     {#if onupdate}<button type="button" class="ghost update" onclick={onupdate}>{updating ? "Checking…" : "Check for updates"}</button>{/if}
+    {#if version}<p class="ver">{version}</p>{/if}
   </form>
 </div>
 
@@ -42,6 +43,7 @@
   .check input { width: 1.1em; height: 1.1em; margin: 0; accent-color: var(--accent); }
   [role="alert"] { margin: 0.75rem 0; padding: 0.6em 0.8em; border-radius: var(--radius); background: #d9534f22; color: #ff8a86; }
   button { width: 100%; margin-top: 0.75rem; padding: 0.7em 1em; }
+  .ver { margin-top: 0.4rem; text-align: center; color: var(--muted); font-size: 0.8rem; }
   .update { margin-top: 0.4rem; color: var(--muted); font-size: 0.9rem; }
   @media (max-width: 480px) { .card { padding: 1.4rem; } }
   /* TV: 24px base on a 540px-high viewport; keep the whole card on screen */
