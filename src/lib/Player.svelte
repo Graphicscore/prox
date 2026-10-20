@@ -8,7 +8,7 @@
   let src = $state<MediaSource | null>(null), error = $state(""), frame = $state(false), full = $state(false);
   let video = $state<HTMLVideoElement | null>(null);
   let section = $state<HTMLElement | null>(null), closeBtn = $state<HTMLButtonElement | null>(null);
-  let retried = false, alive = true, at = 0;
+  let retried = false, focusedVideo = false, alive = true, at = 0;
   const embed = $derived(safeEmbedUrl(stream));
 
   async function resolve() {
@@ -22,8 +22,15 @@
     }
   }
   function onVideoError() {
-    if (!retried) { retried = true; at = video?.currentTime ?? 0; src = null; resolve(); } // airing URLs expire: scrape again once
+    if (!retried) { retried = true; focusedVideo = false; at = video?.currentTime ?? 0; src = null; resolve(); } // airing URLs expire: scrape again once
     else error = "Playback failed";
+  }
+  // Focus the video once per <video>, and only if the user has not moved focus to another control.
+  function focusVideoOnce() {
+    if (focusedVideo) return;
+    focusedVideo = true;
+    const a = document.activeElement;
+    if (a === document.body || a === closeBtn) video?.focus();
   }
   // Own fullscreen: the player overlay fills the window and the app window goes fullscreen. WebKitGTK's native
   // video fullscreen renders black on some NVIDIA/Wayland setups. Outside Tauri windows the overlay alone still works.
@@ -72,7 +79,7 @@
   {:else if src}
     <!-- ponytail: src.mime unused, no HLS path; add hls.js only if a probe shows m3u8 sources -->
     <!-- svelte-ignore a11y_media_has_caption -->
-    <video class="media" tabindex="0" bind:this={video} src={src.url} controls controlslist="nofullscreen" autoplay playsinline onerror={onVideoError} onplaying={() => { retried = false; video?.focus(); }} onloadedmetadata={() => { if (at && video) video.currentTime = at; at = 0; }}></video>
+    <video class="media" tabindex="0" bind:this={video} src={src.url} controls controlslist="nofullscreen" autoplay playsinline onerror={onVideoError} onplaying={() => { retried = false; focusVideoOnce(); }} onloadedmetadata={() => { if (at && video) video.currentTime = at; at = 0; }}></video>
   {:else if !frame && !error}
     <p role="status">Loading…</p>
   {/if}

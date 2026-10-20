@@ -14,7 +14,7 @@
     const offDpad = installDpad();
     let offBack: (() => void) | undefined, gone = false;
     // Android Back: close the top-most layer, else leave the app. Not available on desktop: ignore.
-    onBackButtonPress(() => { if (!handleBack()) void exit(0); })
+    onBackButtonPress(() => { if (!handleBack()) exit(0).catch(() => {}); })
       .then((l) => { if (gone) void l.unregister(); else offBack = () => void l.unregister(); })
       .catch(() => {});
     (async () => { screen = (await api.autoLogin().catch(() => false)) ? "search" : "login"; })();
@@ -41,6 +41,6 @@
   :global(html.tv) { font-size: 24px; }
   :global(html.tv body) { margin: 5vh 5vw; }
   :global(html.tv button:focus-visible, html.tv input:focus-visible) { outline-width: 5px; }
-  @media (pointer: coarse) { :global(button), :global(input) { min-height: 44px; } }
+  @media (pointer: coarse) { :global(button), :global(input:not([type="checkbox"]):not([type="radio"])) { min-height: 44px; } }
   :global(form label) { display: block; margin: 0.5rem 0; }
 </style>
