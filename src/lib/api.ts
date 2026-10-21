@@ -27,6 +27,8 @@ export function describeError(x: unknown): string {
   if (c === "BadCredentials") return "Wrong username or password";
   if (c === "Network") return "Could not reach Proxer";
   if (c.startsWith("Http:")) return `Proxer is not responding (HTTP ${c.slice(5)}). Try again.`;
+  if (c === "Captcha") return "Proxer wants a captcha check (too many requests). Open proxer.me in a browser, solve it, then try again.";
+  if (c === "Parse:streams") return "Proxer did not send this episode's stream list. Try again in a moment.";
   if (c.startsWith("Parse:")) return "Proxer changed something \u2014 the page looks different";
   if (c === "Unsupported") return "This stream type is not supported yet.";
   if (c.startsWith("Proxer:")) return c.slice(7) || "Proxer refused the action";

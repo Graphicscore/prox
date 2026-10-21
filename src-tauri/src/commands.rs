@@ -91,7 +91,23 @@ pub async fn get_episodes(app: State<'_, App>, id: u32, page: Option<u32>) -> Re
 pub async fn get_streams(app: State<'_, App>, id: u32, episode: u32, lang: String) -> Result<Vec<Stream>, String> {
     let lang: String = lang.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
     let html = app.client.get(&format!("/watch/{id}/{episode}/{lang}")).await.map_err(err)?;
-    parse_streams(&html).map_err(|_| "Parse:streams".into())
+    parse_streams(&html).map_err(|_| {
+        // An episode without streams still has `var streams = []`; a page without the variable is something else
+        // (captcha, maintenance, block page). Log its title (no secrets in it) so logcat shows what Proxer sent.
+        eprintln!("get_streams /watch/{id}/{episode}/{lang}: no stream list; page title: {:?}", page_title(&html));
+        streams_error(&html)
+    })
+}
+
+fn page_title(html: &str) -> String {
+    let start = html.find("<title>").map(|i| i + 7).unwrap_or(0);
+    let end = html[start..].find("</title>").map(|i| start + i).unwrap_or(start);
+    html[start..end].trim().chars().take(120).collect()
+}
+
+/// Error code for a watch page without a stream list: Proxer's bot check, or an unknown page.
+fn streams_error(html: &str) -> String {
+    if html.to_ascii_lowercase().contains("captcha") { "Captcha".into() } else { "Parse:streams".into() }
 }
 
 /// The embed page to fetch for a stream, or "Unsupported" for hosters we cannot play.
@@ -237,6 +253,14 @@ mod tests {
         assert_eq!(embed_target(&stream("proxer-stream")).as_deref(), Ok(want));
         assert_eq!(embed_target(&stream("ps-test")).as_deref(), Ok(want));
         assert_eq!(embed_target(&stream("other-host")), Err("Unsupported".to_string()));
+    }
+
+    #[test]
+    fn streams_page_errors() {
+        assert_eq!(streams_error("<html><div class=\"g-recaptcha\"></div></html>"), "Captcha");
+        assert_eq!(streams_error("<html><title>Wartung</title></html>"), "Parse:streams");
+        assert_eq!(page_title("<html><head><title> Wartung - Proxer.Me </title></head></html>"), "Wartung - Proxer.Me");
+        assert_eq!(page_title("<html></html>"), "");
     }
 
     #[test]
