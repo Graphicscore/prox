@@ -3,6 +3,7 @@
   import { api, describeError, streamLabel, type Episode, type Info, type ListEntry, type PageLink, type Stream, type TitleAction } from "./api";
   import { pushBack } from "./back";
   import { loadRecent, saveRecent } from "./recent";
+  import { setListStates } from "./liststate.svelte";
   import Player from "./Player.svelte";
   import Hero from "./ui/Hero.svelte";
   import EpisodePicker from "./ui/EpisodePicker.svelte";
@@ -24,7 +25,7 @@
   let entry = $state<ListEntry | null>(null), message = $state(""), busy = false;
   async function loadEntry() {
     const cur = id;
-    try { const l = await api.myList(); if (cur === id) entry = l.find((e) => e.id === cur) ?? null; }
+    try { const l = await api.myList(); setListStates(l); if (cur === id) entry = l.find((e) => e.id === cur) ?? null; }
     catch (x) { if (x === "NotLoggedIn") onauth(); } // the chip is optional: the page stays usable without it
   }
   /** Run a write; show Proxer's message, refresh the list state. Buttons stay enabled (TV focus), so guard re-entry. */

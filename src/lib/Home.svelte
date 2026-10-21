@@ -3,12 +3,14 @@
   import { api, describeError, type ListKind, type SearchHit } from "./api";
   import { myListHits } from "./ui/helpers";
   import { loadRecent } from "./recent";
+  import { setListStates } from "./liststate.svelte";
   import PosterRow from "./ui/PosterRow.svelte";
   import Hero from "./ui/Hero.svelte";
   let { onopen, onauth, active = true }: { onopen: (id: number) => void; onauth: () => void; active?: boolean } = $props();
 
   type Row = { kind: ListKind | "mine" | "recent"; title: string; status: "loading" | "ready" | "error"; hits: SearchHit[]; error: string };
   const recentHits = (): SearchHit[] => loadRecent().map((r) => ({ id: r.id, title: r.title, genres: [], kind: "", rating: null, badge: `Ep ${r.ep}` }));
+  const setListed = (l: Parameters<typeof setListStates>[0]) => { setListStates(l); return l; };
   let rows = $state<Row[]>([
     { kind: "recent", title: "Recent", status: "ready", hits: recentHits(), error: "" }, // local: no loading state
     { kind: "mine", title: "My list", status: "loading", hits: [], error: "" },
@@ -21,7 +23,7 @@
   /** `quiet`: refresh in place (posters stay, focus survives); a failure keeps what is shown. */
   async function load(r: Row, quiet = false) {
     if (!quiet) { r.status = "loading"; r.error = ""; }
-    try { r.hits = r.kind === "recent" ? recentHits() : r.kind === "mine" ? myListHits(await api.myList()) : (await api.getList(r.kind)).hits; r.status = "ready"; r.error = ""; }
+    try { r.hits = r.kind === "recent" ? recentHits() : r.kind === "mine" ? myListHits(setListed(await api.myList())) : (await api.getList(r.kind)).hits; r.status = "ready"; r.error = ""; }
     catch (x) { if (x === "NotLoggedIn") onauth(); else if (!quiet) { r.error = describeError(x); r.status = "error"; } }
   }
   onMount(() => { for (const r of rows) if (r.kind !== "recent") load(r); }); // once; not an $effect, load() writes the state it would track
