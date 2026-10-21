@@ -46,7 +46,7 @@ const realApi = {
   autoLogin: () => invoke<boolean>("auto_login"),
   logout: () => invoke<void>("logout"),
   search: (query: string, page = 1) => invoke<SearchPage>("search", { query, page }),
-  getList: (kind: ListKind) => invoke<SearchPage>("get_list", { kind }),
+  getList: (kind: ListKind, page = 1) => invoke<SearchPage>("get_list", { kind, page }),
   getCalendar: () => invoke<CalendarEntry[]>("get_calendar"),
   info: (id: number) => invoke<Info>("get_info", { id }),
   episodes: (id: number, page = 1) => invoke<EpisodeList>("get_episodes", { id, page }),

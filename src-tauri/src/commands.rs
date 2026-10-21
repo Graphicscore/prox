@@ -54,20 +54,21 @@ pub async fn search(app: State<'_, App>, query: String, page: Option<u32>) -> Re
     Ok(parse_search_page(&html))
 }
 
-/// Home rows: kind -> the Proxer list page (same `tr.entry` table as search).
-fn list_path(kind: &str) -> Option<&'static str> {
-    match kind {
-        "airing" => Some("/anime/airing"),
-        "rating" => Some("/anime/animeseries/rating/all"),
-        "clicks" => Some("/anime/animeseries/clicks/all"),
-        _ => None,
-    }
+/// Home rows: kind + page (1-based, 50 per page) -> the Proxer list page (same `tr.entry` table as search).
+fn list_path(kind: &str, page: u32) -> Option<String> {
+    let base = match kind {
+        "airing" => "/anime/airing/rating/all",
+        "rating" => "/anime/animeseries/rating/all",
+        "clicks" => "/anime/animeseries/clicks/all",
+        _ => return None,
+    };
+    Some(format!("{base}/{}", page.max(1)))
 }
 
 #[tauri::command]
-pub async fn get_list(app: State<'_, App>, kind: String) -> Result<SearchPage, String> {
-    let path = list_path(&kind).ok_or_else(|| "Unsupported".to_string())?;
-    let html = app.client.get(path).await.map_err(err)?;
+pub async fn get_list(app: State<'_, App>, kind: String, page: Option<u32>) -> Result<SearchPage, String> {
+    let path = list_path(&kind, page.unwrap_or(1)).ok_or_else(|| "Unsupported".to_string())?;
+    let html = app.client.get(&path).await.map_err(err)?;
     Ok(parse_search_page(&html))
 }
 
@@ -223,11 +224,12 @@ mod tests {
 
     #[test]
     fn list_paths() {
-        assert_eq!(list_path("airing"), Some("/anime/airing"));
-        assert_eq!(list_path("rating"), Some("/anime/animeseries/rating/all"));
-        assert_eq!(list_path("clicks"), Some("/anime/animeseries/clicks/all"));
-        assert_eq!(list_path("../etc"), None);
-        assert_eq!(list_path(""), None);
+        assert_eq!(list_path("airing", 1).as_deref(), Some("/anime/airing/rating/all/1"));
+        assert_eq!(list_path("airing", 2).as_deref(), Some("/anime/airing/rating/all/2"));
+        assert_eq!(list_path("rating", 3).as_deref(), Some("/anime/animeseries/rating/all/3"));
+        assert_eq!(list_path("clicks", 0).as_deref(), Some("/anime/animeseries/clicks/all/1"));
+        assert_eq!(list_path("../etc", 1), None);
+        assert_eq!(list_path("", 1), None);
     }
 
     #[test]
