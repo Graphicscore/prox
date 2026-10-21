@@ -7,7 +7,7 @@ edition = "2021"
 proxer-parse = { path = "../proxer-parse" }
 reqwest = { version = "0.12", default-features = false, features = ["cookies", "rustls-tls"] }
 tokio = { version = "1", features = ["sync"] }
-thiserror = "1"
+thiserror = "2"
 
 [dev-dependencies]
 wiremock = "0.6"
