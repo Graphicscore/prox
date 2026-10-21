@@ -26,7 +26,7 @@ export function makeDemoApi(): Api {
     autoLogin: async () => true,
     logout: async () => {},
     search: async (query: string): Promise<SearchPage> => ({ hits: HITS.filter((h) => h.title.toLowerCase().includes(query.toLowerCase()) || !query), has_next: false }),
-    getList: async (kind: ListKind): Promise<SearchPage> => ({ hits: lists[kind], has_next: false }),
+    getList: async (kind: ListKind, page = 1): Promise<SearchPage> => ({ hits: page === 1 ? lists[kind] : [], has_next: false }),
     checkUpdate: async () => null,
     downloadUpdate: async () => "",
     getCalendar: async (): Promise<CalendarEntry[]> => {
