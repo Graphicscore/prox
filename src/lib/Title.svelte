@@ -71,7 +71,7 @@
     try {
       const r = await api.streams(id, ep, l);
       if (selected === mine) streams = r;
-    } catch (x) { if (selected === mine && x !== "Parse:streams") fail(x); }
+    } catch (x) { if (selected === mine) fail(x); } // an episode that has not aired yet is an empty list, not an error
     finally { if (selected === mine) loadingStreams = false; }
   }
   // Watch continues: the next unwatched episode (list progress), or the one last started in this app.
