@@ -3435,13 +3435,10 @@ dependencies = [
 name = "proxer-app"
 version = "0.1.0"
 dependencies = [
- "jni 0.22.4",
  "keyring",
- "ndk-context",
  "proxer-client",
  "proxer-parse",
  "reqwest",
- "rustls-platform-verifier",
  "serde",
  "serde_json",
  "tauri",
@@ -3454,8 +3451,10 @@ version = "0.1.0"
 dependencies = [
  "proxer-parse",
  "reqwest",
+ "rustls",
  "thiserror 2.0.21",
  "tokio",
+ "webpki-roots",
  "wiremock",
 ]
 
@@ -3767,6 +3766,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
 dependencies = [
  "aws-lc-rs",
+ "log",
  "once_cell",
  "rustls-pki-types",
  "rustls-webpki",
@@ -5442,6 +5442,15 @@ name = "webpki-root-certs"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "58ec80e73fd8baf57bf0d9615554c75348bda990d6d5bbeab964dd068319fecb"
+dependencies = [
+ "rustls-pki-types",
+]
+
+[[package]]
+name = "webpki-roots"
+version = "1.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c1c8e20c8a38fc7d65abfe74eb7280e4aa667e8eec8bc84996d2874810748d9"
 dependencies = [
  "rustls-pki-types",
 ]

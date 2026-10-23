@@ -21,7 +21,10 @@ fn err(e: Error) -> String {
 
 #[tauri::command]
 pub async fn login(app: State<'_, App>, username: String, password: String, remember: bool) -> Result<bool, String> {
-    app.client.login(&username, &password).await.map_err(err)?;
+    let res = app.client.login(&username, &password).await;
+    #[cfg(target_os = "android")]
+    if let Err(e) = &res { eprintln!("login error: {e:?}"); }
+    res.map_err(err)?;
     if !remember {
         app.store.clear(); // an older saved account must not auto-login next start
     }

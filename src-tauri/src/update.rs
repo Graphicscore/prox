@@ -52,7 +52,7 @@ pub fn parse_release(json: &str, name: Option<&str>) -> Option<(u32, String, Opt
 }
 
 fn http() -> reqwest::Client {
-    reqwest::Client::builder()
+    proxer_client::with_tls(reqwest::Client::builder())
         .user_agent("proxer-app-updater")
         .timeout(std::time::Duration::from_secs(600))
         .build()

@@ -16,6 +16,26 @@ pub enum Error {
     Network(#[from] reqwest::Error),
 }
 
+/// reqwest 0.13's `rustls` feature verifies against the platform certificate store via
+/// rustls-platform-verifier. On Android that needs JVM glue (an AAR component) that a plain
+/// Tauri app doesn't have, so every HTTPS request fails there. Use the static Mozilla root
+/// bundle instead — this matches what reqwest 0.12's `rustls-tls` did and works everywhere.
+#[cfg(target_os = "android")]
+pub fn with_tls(b: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
+    use rustls::RootCertStore;
+    let mut roots = RootCertStore::empty();
+    roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    let cfg = rustls::ClientConfig::builder_with_provider(rustls::crypto::aws_lc_rs::default_provider().into())
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    b.tls_backend_preconfigured(cfg)
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn with_tls(b: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
+    b
+}
+
 pub struct Client {
     http: std::sync::RwLock<reqwest::Client>,
     embed_http: reqwest::Client, // anonymous: no cookies, no redirects
@@ -29,7 +49,7 @@ impl Client {
     pub fn new(base: &str) -> Self {
         Self {
             http: std::sync::RwLock::new(Self::build_http()),
-            embed_http: reqwest::Client::builder()
+            embed_http: with_tls(reqwest::Client::builder())
                 .user_agent(UA)
                 .redirect(reqwest::redirect::Policy::none())
                 .timeout(std::time::Duration::from_secs(20))
@@ -43,7 +63,7 @@ impl Client {
     }
 
     fn build_http() -> reqwest::Client {
-        reqwest::Client::builder().cookie_store(true).user_agent(UA).build().expect("http client")
+        with_tls(reqwest::Client::builder()).cookie_store(true).user_agent(UA).build().expect("http client")
     }
 
     fn http(&self) -> reqwest::Client {
