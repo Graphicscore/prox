@@ -3435,10 +3435,13 @@ dependencies = [
 name = "proxer-app"
 version = "0.1.0"
 dependencies = [
+ "jni 0.22.4",
  "keyring",
+ "ndk-context",
  "proxer-client",
  "proxer-parse",
  "reqwest",
+ "rustls-platform-verifier",
  "serde",
  "serde_json",
  "tauri",
