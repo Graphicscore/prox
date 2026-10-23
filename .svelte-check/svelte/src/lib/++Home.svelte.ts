@@ -1,0 +1,92 @@
+///<reference types="svelte" />
+;
+import { onMount, tick, untrack } from "svelte";
+import { api, describeError, type ListKind, type SearchHit } from "./api";
+import { myListHits } from "./ui/helpers";
+import { loadRecent } from "./recent";
+import { setListStates } from "./liststate.svelte";
+import { toast } from "./toast.svelte";
+import PosterRow from "./ui/PosterRow.svelte";
+import Hero from "./ui/Hero.svelte";
+;
+
+  type Row = { kind: ListKind | "mine" | "recent"; title: string; status: "loading" | "ready" | "error"; hits: SearchHit[]; error: string; page?: number; more?: boolean; loadingMore?: boolean };;
+;type $$ComponentProps =  { onopen: (id: number) => void; onauth: () => void; active?: boolean };function $$render() {
+
+  
+  
+  
+  
+  
+  
+  
+  
+  let { onopen, onauth, active = true }:/*Ωignore_startΩ*/$$ComponentProps/*Ωignore_endΩ*/ = $props();
+
+  const recentHits = (): SearchHit[] => loadRecent().map((r) => ({ id: r.id, title: r.title, genres: [], kind: "", rating: null, badge: `Ep ${r.ep}` }));
+  const setListed = (l: Parameters<typeof setListStates>[0]) => { setListStates(l); return l; };
+  let rows = $state<Row[]>([
+    { kind: "recent", title: "Recent", status: "ready", hits: recentHits(), error: "" }, // local: no loading state
+    { kind: "mine", title: "My list", status: "loading", hits: [], error: "" },
+    { kind: "airing", title: "Airing now", status: "loading", hits: [], error: "" },
+    { kind: "rating", title: "Top rated", status: "loading", hits: [], error: "" },
+    { kind: "clicks", title: "Most viewed", status: "loading", hits: [], error: "" },
+  ]);
+  const hero = $derived(rows.find((r) => r.kind === "airing")?.hits[0] ?? null);
+
+  /** `quiet`: refresh in place (posters stay, focus survives); a failure keeps what is shown. */
+  async function load(r: Row, quiet = false) {
+    if (!quiet) { r.status = "loading"; r.error = ""; }
+    try {
+      if (r.kind === "recent") r.hits = recentHits();
+      else if (r.kind === "mine") r.hits = myListHits(setListed(await api.myList()));
+      else { const p = await api.getList(r.kind); r.hits = p.hits; r.page = 1; r.more = p.has_next; }
+      r.status = "ready"; r.error = "";
+    }
+    catch (x) { if (x === "NotLoggedIn") onauth(); else if (!quiet) { r.error = describeError(x); r.status = "error"; } }
+  }
+  /** Next Proxer page of a list row, appended (titles already shown are skipped: keyed posters must stay unique). */
+  async function loadMore(r: Row) {
+    if (r.kind === "recent" || r.kind === "mine" || !r.more || r.loadingMore) return;
+    r.loadingMore = true;
+    try {
+      const p = await api.getList(r.kind, (r.page ?? 1) + 1);
+      const seen = new Set(r.hits.map((h) => h.id));
+      r.hits = [...r.hits, ...p.hits.filter((h) => !seen.has(h.id))];
+      r.page = (r.page ?? 1) + 1; r.more = p.has_next && p.hits.length > 0;
+    } catch (x) { if (x === "NotLoggedIn") onauth(); else toast(describeError(x)); }
+    finally { r.loadingMore = false; }
+  }
+  onMount(() => { for (const r of rows) if (r.kind !== "recent") load(r); }); // once; not an $effect, load() writes the state it would track
+  // Home stays mounted behind an open title: back on Home, refresh Recent and My list (playing/Save/Finished change them).
+  let wasActive = true, lastId = 0, root = $state<HTMLElement>();
+  $effect(() => { const a = active; untrack(() => { if (a && !wasActive) Promise.all(rows.filter((r) => r.kind === "recent" || r.kind === "mine").map((r) => load(r, true))).then(refocus); wasActive = a; }); });
+  const open = (i: number) => { lastId = i; onopen(i); };
+  /** The refresh dropped or moved the focused poster: focus it again (same title, else the first poster), never leave <body>. */
+  async function refocus() {
+    await tick();
+    const a = document.activeElement;
+    if (!active) return;
+    if (a && a !== document.body && a.isConnected) { (a as HTMLElement).scrollIntoView({ block: "nearest" }); return; } // a new Recent row may have pushed it down
+    (root?.querySelector<HTMLElement>(`[data-id="${lastId}"]`) ?? root?.querySelector<HTMLElement>(".poster"))?.focus(); // first match: Recent, then My list
+  }
+;
+async () => {
+
+if(hero){
+   { const $$_oreH0C = __sveltets_2_ensureComponent(Hero); new $$_oreH0C({ target: __sveltets_2_any(), props: {     children:() => { return __sveltets_2_any(0); },"id":hero.id,"title":hero.title,"meta":[hero.kind, hero.rating, hero.genres.slice(0, 3).join(", ")].filter(Boolean).join(" · "),}});
+     { svelteHTML.createElement("button", {   "class":`primary`,"onclick":() => open(hero.id),});  }
+   Hero}
+}
+ { const $$_div0 = svelteHTML.createElement("div", {  "class":`rows`,});root = $$_div0;
+     for(let r of __sveltets_2_ensureArray(rows)){r.kind;
+     { const $$_woRretsoP1C = __sveltets_2_ensureComponent(PosterRow); new $$_woRretsoP1C({ target: __sveltets_2_any(), props: {                  "title":r.title,"hits":r.hits,"status":r.status,"error":r.error,"onopen":open,"onretry":() => load(r),"more":r.more,"loadingMore":r.loadingMore,"onmore":() => loadMore(r),}});}
+  }
+ }
+
+
+};
+return { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}
+const Home__SvelteComponent_ = __sveltets_2_fn_component($$render());
+/*Ωignore_startΩ*/type Home__SvelteComponent_ = ReturnType<typeof Home__SvelteComponent_>;
+/*Ωignore_endΩ*/export default Home__SvelteComponent_;

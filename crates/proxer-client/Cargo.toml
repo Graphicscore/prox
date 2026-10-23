@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 proxer-parse = { path = "../proxer-parse" }
-reqwest = { version = "0.13", default-features = false, features = ["cookies", "rustls-tls"] }
+reqwest = { version = "0.13", default-features = false, features = ["cookies", "charset", "form", "rustls"] }
 tokio = { version = "1", features = ["sync"] }
 thiserror = "2"
 

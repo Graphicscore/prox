@@ -1,0 +1,43 @@
+{
+  "extends": "../tsconfig.app.json",
+  "compilerOptions": {
+    "rootDirs": [
+      "..",
+      "svelte"
+    ],
+    "allowArbitraryExtensions": true,
+    "noEmit": true,
+    "incremental": false,
+    "tsBuildInfoFile": "tsbuildinfo.json"
+  },
+  "files": [
+    "../node_modules/svelte-check/dist/src/svelte-shims-v4.d.ts",
+    "../node_modules/svelte/svelte-html.d.ts"
+  ],
+  "include": [
+    "../src/**/*.ts",
+    "../src/**/*.js",
+    "../src/**/*.svelte",
+    "svelte/src/**/*.ts",
+    "svelte/src/**/*.js",
+    "svelte/src/**/*.d.svelte.ts"
+  ],
+  "exclude": [
+    "../src/App.svelte",
+    "../src/lib/Calendar.svelte",
+    "../src/lib/Home.svelte",
+    "../src/lib/Login.svelte",
+    "../src/lib/Player.svelte",
+    "../src/lib/Search.svelte",
+    "../src/lib/Title.svelte",
+    "../src/lib/ui/Cover.svelte",
+    "../src/lib/ui/EpisodePicker.svelte",
+    "../src/lib/ui/Hero.svelte",
+    "../src/lib/ui/Loading.svelte",
+    "../src/lib/ui/Poster.svelte",
+    "../src/lib/ui/PosterGrid.svelte",
+    "../src/lib/ui/PosterRow.svelte",
+    "../src/lib/ui/Shell.svelte",
+    "../src/lib/ui/Toasts.svelte"
+  ]
+}
