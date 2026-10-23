@@ -41,7 +41,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run check
-      - run: cargo test --workspace
+      # The runner's dind storage does not keep POSIX file modes (creds tests check 0600): run the tests on tmpfs.
+      - run: cargo test --workspace --no-run
+      - run: TMPDIR=/dev/shm cargo test --workspace
 
   linux:
     needs: [meta, test]
@@ -135,7 +137,7 @@ jobs:
   # Public release with fixed asset names: the in-app updater downloads from here (mirrored to GitHub).
   release:
     needs: [meta, linux, android]
-    if: github.ref == 'refs/heads/master' # a dispatched run of another branch builds but never publishes
+    if: success() && github.ref == 'refs/heads/master' # a dispatched run of another branch builds but never publishes
     runs-on: ubuntu-26.04
     env:
       BUILD_N: ${{ needs.meta.outputs.build_n }}
