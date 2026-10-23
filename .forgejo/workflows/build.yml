@@ -1,7 +1,8 @@
 name: build
 
 # Builds the latest commit of master for Linux (deb + AppImage) and Android (signed release APKs per ABI).
-# Download the files from the run's "Artifacts" section.
+# Download the files from the run's "Artifacts" section, or from the build-<N> release.
+# Runs on Forgejo Actions (git.asteria.dog); the build number continues the GitHub series: N = run_number + 10.
 on:
   push:
     branches: [master]
@@ -15,11 +16,20 @@ env:
   # CI speed: thin LTO and parallel codegen instead of the local fat-LTO/1-unit release profile (slightly bigger binaries).
   CARGO_PROFILE_RELEASE_LTO: thin
   CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
-  # The app compares its own version (0.1.<run number>) with the latest release tag (build-<run number>).
-  BUILD_VERSION: 0.1.${{ github.run_number }}
 
 jobs:
+  # Build number N: GitHub stopped at build-10 and Forgejo's run_number restarts at 1, so N = run_number + 10.
+  # The app compares its own version (0.1.<N>) with the latest release tag (build-<N>).
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      build_n: ${{ steps.n.outputs.build_n }}
+    steps:
+      - id: n
+        run: echo "build_n=$(( ${{ github.run_number }} + 10 ))" >> "$GITHUB_OUTPUT"
+
   test:
+    needs: meta
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
@@ -34,8 +44,10 @@ jobs:
       - run: cargo test --workspace
 
   linux:
-    needs: test
+    needs: [meta, test]
     runs-on: ubuntu-26.04
+    env:
+      BUILD_VERSION: 0.1.${{ needs.meta.outputs.build_n }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -50,7 +62,7 @@ jobs:
       - run: npm run tauri build -- --config "{\"version\":\"$BUILD_VERSION\"}" --bundles deb,appimage
         env:
           APPIMAGE_EXTRACT_AND_RUN: 1 # linuxdeploy without FUSE on the runner
-      - uses: actions/upload-artifact@v7
+      - uses: https://data.forgejo.org/forgejo/upload-artifact@v4
         with:
           name: proxer-linux-${{ github.sha }}
           path: |
@@ -59,7 +71,7 @@ jobs:
           if-no-files-found: error
 
   android:
-    needs: test
+    needs: [meta, test]
     runs-on: ubuntu-26.04
     strategy:
       matrix: # one job per ABI, in parallel: arm64 for most phones/TVs, armv7 for older 32-bit TVs, x86_64 for emulators
@@ -69,6 +81,7 @@ jobs:
           - { abi: x86_64, rust: x86_64-linux-android }
     env:
       NDK_VERSION: 28.2.13676358
+      BUILD_VERSION: 0.1.${{ needs.meta.outputs.build_n }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -80,6 +93,11 @@ jobs:
           targets: ${{ matrix.rust }}
       - uses: Swatinem/rust-cache@v2
         with: { key: "android-${{ matrix.abi }}" }
+      # The runner image has no Android SDK: install cmdline-tools (sets ANDROID_HOME, puts sdkmanager on PATH),
+      # plus the platform matching compileSdk = 37 and build-tools (apksigner) from app/build.gradle.kts.
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-37.0 build-tools;37.0.0"
       - id: ndk
         run: echo "dir=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v6 # the NDK is ~1 GB: download it once per version
@@ -89,8 +107,8 @@ jobs:
       - name: Android NDK
         run: |
           if [ ! -d "${{ steps.ndk.outputs.dir }}" ]; then
-            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
-            "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION"
+            yes | sdkmanager --licenses > /dev/null
+            sdkmanager "ndk;$NDK_VERSION"
           fi
           echo "NDK_HOME=${{ steps.ndk.outputs.dir }}" >> "$GITHUB_ENV"
       - run: npm ci
@@ -108,22 +126,24 @@ jobs:
         run: |
           BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
           for a in src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk; do "$BT/apksigner" verify "$a"; echo "signed: $a"; done # bash -e: an unsigned APK fails the job
-      - uses: actions/upload-artifact@v7
+      - uses: https://data.forgejo.org/forgejo/upload-artifact@v4
         with:
           name: proxer-android-${{ matrix.abi }}-${{ github.sha }}
           path: src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk
           if-no-files-found: error
 
-  # Public release with fixed asset names: the in-app updater downloads from here.
+  # Public release with fixed asset names: the in-app updater downloads from here (mirrored to GitHub).
   release:
-    needs: [linux, android]
+    needs: [meta, linux, android]
+    if: github.ref == 'refs/heads/master' # a dispatched run of another branch builds but never publishes
     runs-on: ubuntu-26.04
-    permissions:
-      contents: write
+    env:
+      BUILD_N: ${{ needs.meta.outputs.build_n }}
+      BUILD_VERSION: 0.1.${{ needs.meta.outputs.build_n }}
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: https://data.forgejo.org/forgejo/download-artifact@v4
         with: { name: "proxer-linux-${{ github.sha }}", path: linux }
-      - uses: actions/download-artifact@v8
+      - uses: https://data.forgejo.org/forgejo/download-artifact@v4
         with: { pattern: "proxer-android-*-${{ github.sha }}", path: android, merge-multiple: true }
       - name: Rename assets
         run: |
@@ -135,9 +155,22 @@ jobs:
           one linux '*.AppImage' proxer-linux-x86_64.AppImage
           one linux '*.deb' proxer-linux-amd64.deb
           ls -la out
-      - name: Publish release build-${{ github.run_number }}
+      # Draft -> 5 assets -> publish, so the updater never sees a release with missing files; a failure deletes the draft.
+      - name: Publish release build-${{ needs.meta.outputs.build_n }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "build-${{ github.run_number }}" out/* -R "${{ github.repository }}" --target "${{ github.sha }}" \
-            --title "Build ${{ github.run_number }}" --notes "Automatic build of ${{ github.sha }}. Version $BUILD_VERSION." --latest
+          api="$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY/releases"
+          auth="Authorization: token $TOKEN"
+          body=$(jq -n --arg tag "build-$BUILD_N" --arg sha "$GITHUB_SHA" --arg name "Build $BUILD_N" \
+            --arg body "Automatic build of $GITHUB_SHA. Version $BUILD_VERSION." \
+            '{tag_name: $tag, target_commitish: $sha, name: $name, body: $body, draft: true, prerelease: false}')
+          id=$(curl -fsS -X POST -H "$auth" -H "Content-Type: application/json" -d "$body" "$api" | jq -er .id)
+          trap 'echo "::error::publishing failed, deleting draft $id"; curl -fsS -X DELETE -H "$auth" "$api/$id"' ERR
+          for f in out/*; do
+            curl -fsS -X POST -H "$auth" -F "attachment=@$f" "$api/$id/assets?name=$(basename "$f")" | jq -c '{name, size}'
+          done
+          n=$(curl -fsS -H "$auth" "$api/$id" | jq '.assets | length')
+          test "$n" -eq 5 || { echo "::error::expected 5 assets, found $n"; false; }
+          curl -fsS -X PATCH -H "$auth" -H "Content-Type: application/json" -d '{"draft":false}' "$api/$id" \
+            | jq -c '{tag_name, draft, assets: [.assets[].name]}'
