@@ -10,3 +10,4 @@ src-tauri/gen/android/**/build/
 src-tauri/gen/android/local.properties
 *.apk
 *.aab
+.env.test-credentials

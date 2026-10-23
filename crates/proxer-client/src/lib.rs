@@ -26,6 +26,7 @@ pub fn with_tls(b: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
     let mut roots = RootCertStore::empty();
     roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
     let cfg = rustls::ClientConfig::builder_with_provider(rustls::crypto::aws_lc_rs::default_provider().into())
+        .with_safe_default_protocol_versions().expect("safe protocol versions")
         .with_root_certificates(roots)
         .with_no_client_auth();
     b.tls_backend_preconfigured(cfg)
