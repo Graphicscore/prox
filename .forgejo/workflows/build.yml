@@ -109,7 +109,7 @@ jobs:
       - name: Android NDK
         run: |
           if [ ! -d "${{ steps.ndk.outputs.dir }}" ]; then
-            yes | sdkmanager --licenses > /dev/null
+            yes | sdkmanager --licenses > /dev/null || true # `yes` dies of SIGPIPE (141) under pipefail
             sdkmanager "ndk;$NDK_VERSION"
           fi
           echo "NDK_HOME=${{ steps.ndk.outputs.dir }}" >> "$GITHUB_ENV"
