@@ -28,6 +28,9 @@ import { api, describeError, safeEmbedUrl, streamLabel, type MediaSource, type S
   const main = () => (full ? section : video); // where focus belongs while watching
   let src = $state<MediaSource | null>(null), error = $state(""), frame = $state(false), full = $state(false);
   const tv = currentTv(); // TV: the player opens fullscreen and Back closes it (an inline player sits below the fold there)
+  // Android (bridge present): a fullscreen player sits on top of its own inline copy — collapsing it first looks like
+  // a dead Back button, so Back leaves the player outright, like on TV. Desktop keeps the two-step Esc behavior.
+  const mobile = (window as unknown as { AndroidTv?: unknown }).AndroidTv !== undefined;
   let video = $state<HTMLVideoElement | null>(null);
   let section = $state<HTMLElement | null>(null), closeBtn = $state<HTMLButtonElement | null>(null);
   let retried = false, focusedVideo = false, alive = true, at = 0, going = false, started = false;
@@ -90,6 +93,7 @@ import { api, describeError, safeEmbedUrl, streamLabel, type MediaSource, type S
       else if (!on && a === section) video?.focus({ preventScroll: true });
     });
     try { await getCurrentWindow().setFullscreen(on); } catch { /* no window API (mobile/browser): overlay only */ }
+    (window as unknown as { AndroidTv?: { immersive?: (on: boolean) => void } }).AndroidTv?.immersive?.(on); // mobile: hide the system bars
   }
   function key(e: KeyboardEvent) {
     const tag = (e.target as HTMLElement | null)?.tagName;
@@ -106,7 +110,7 @@ import { api, describeError, safeEmbedUrl, streamLabel, type MediaSource, type S
     closeBtn?.focus(); section?.scrollIntoView({ block: "start" }); // start honors scroll-padding: the toolbar stays below the sticky top bar
     setSeekMode(true);
     if (tv) setFull(true);
-    return pushBack(() => { if (full && !tv) setFull(false); else onback(); return true; });
+    return pushBack(() => { if (full && !tv && !mobile) setFull(false); else onback(); return true; });
   });
   $effect(() => { setDpadRoot(section); setFullscreenMode(full); }); // the open player keeps D-pad focus to itself
   onDestroy(() => {
@@ -118,7 +122,10 @@ import { api, describeError, safeEmbedUrl, streamLabel, type MediaSource, type S
     setDpadRoot(null);
     setFullscreenMode(false);
     setSeekMode(false);
-    if (full) getCurrentWindow().setFullscreen(false).catch(() => {}); // never leave the window fullscreen behind
+    if (full) { // never leave the window fullscreen or the bars hidden behind
+      getCurrentWindow().setFullscreen(false).catch(() => {});
+      (window as unknown as { AndroidTv?: { immersive?: (on: boolean) => void } }).AndroidTv?.immersive?.(false);
+    }
   });
 ;
 async () => {
