@@ -23,7 +23,7 @@ proxer-client = { path = "../crates/proxer-client" }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+keyring = { version = "4", features = ["apple-native", "windows-native", "sync-secret-service"] }
 
 
 [dev-dependencies]
