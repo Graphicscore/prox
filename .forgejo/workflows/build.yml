@@ -3,9 +3,11 @@ name: build
 # Builds the latest commit of master for Linux (deb + AppImage) and Android (signed release APKs per ABI).
 # Download the files from the run's "Artifacts" section, or from the build-<N> release.
 # Runs on Forgejo Actions (git.asteria.dog); the build number continues the GitHub series: N = run_number + 10.
+# Pull requests run the same tests and builds (Android unsigned: no release key) but never publish.
 on:
   push:
     branches: [master]
+  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -115,6 +117,7 @@ jobs:
           echo "NDK_HOME=${{ steps.ndk.outputs.dir }}" >> "$GITHUB_ENV"
       - run: npm ci
       - name: Release signing key (repository secrets)
+        if: github.event_name != 'pull_request' # PR runs get no secrets: build unsigned
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -125,6 +128,7 @@ jobs:
       # Release APK signed with the fixed key, so new builds install over old ones.
       - run: npm run tauri android build -- --config "{\"version\":\"$BUILD_VERSION\"}" --apk --split-per-abi --target ${{ matrix.abi }}
       - name: Check signature
+        if: github.event_name != 'pull_request'
         run: |
           BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
           for a in src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk; do "$BT/apksigner" verify "$a"; echo "signed: $a"; done # bash -e: an unsigned APK fails the job
