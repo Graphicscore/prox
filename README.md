@@ -37,7 +37,8 @@ Screenshots use the built-in demo data, not a real account.
 
 ## Download
 
-Every push to `master` is built by Forgejo Actions and published as a release (`build-<N>`), mirrored to GitHub. Latest build:
+Releases (`build-<N>`) are published on [Forgejo](https://git.asteria.dog/asteria/prox/releases/latest) from a `build-<N>` tag
+(see [Releasing](#releasing)) and mirrored to GitHub. The in-app updater reads the Forgejo releases. Latest build:
 
 | Device | File |
 |---|---|
@@ -77,6 +78,17 @@ cargo test --workspace # parsers, HTTP client, commands
 
 UI work without a login: `npm run dev`, then open `http://localhost:1420/?demo&screen=home` (also `screen=search&q=naruto`,
 `screen=title&id=53&pick=1`, `screen=calendar`, `screen=login`, and `&tv=1` for the TV layout). Demo data exists only in dev builds.
+
+### Releasing
+
+Pushes to `master` and pull requests are only built and tested. To publish, tag the commit with the next build number
+(higher than the [latest release](https://git.asteria.dog/asteria/prox/releases/latest)) and push the tag:
+
+```sh
+git tag build-18 && git push origin build-18
+```
+
+CI builds that tag as version `0.1.18` and publishes release `build-18` with all five files; installed apps offer it as an update.
 
 ## How it works
 

@@ -50,7 +50,7 @@ proxer/
 - IPC contract = command name + serde field names (snake_case on both sides) + string error codes. Change Rust and TS together.
 - Comments explain WHY in one line; code is dense (short names, one-line matches). Match the surrounding density.
 - Rust edition 2021; workspace release profile only in root `Cargo.toml` (CI overrides LTO/codegen via `CARGO_PROFILE_RELEASE_*`).
-- App version is `0.1.<N>` stamped by CI (`--config {"version":...}`); local builds are `0.1.0` = build 0.
+- App version is `0.1.<N>` stamped by CI from the `build-<N>` tag (`--config {"version":...}`); local and untagged builds are `0.1.0` = build 0.
 - UI copy is English; Proxer data (list states, messages) stays German (`Am Schauen`, `Wird noch geschaut`, ...).
 
 ## ANTI-PATTERNS (THIS PROJECT)
@@ -72,7 +72,7 @@ source scripts/android-env.sh && npm run tauri android build -- --apk --split-pe
 ```
 
 ## NOTES
-- CI runs on Forgejo Actions (git.asteria.dog, `origin`). Releases `build-<N>` (N = run_number + 10) are mirrored to GitHub `Graphicscore/prox`, which the in-app updater reads.
+- CI runs on Forgejo Actions (git.asteria.dog, `origin`) for master, PRs and tags. Only a pushed tag `build-<N>` publishes release `build-<N>` (app version `0.1.<N>`); master/PR builds are version `0.1.0` and never publish. The in-app updater reads Forgejo releases; they are mirrored to GitHub `Graphicscore/prox` for older installs and README links.
 - Desktop on KDE Wayland + NVIDIA: run with `env WEBKIT_DISABLE_DMABUF_RENDERER=1 npm run tauri dev`; video needs `gst-plugins-good`. WebKit native video fullscreen renders black, so the player uses its own fullscreen (Tauri `setFullscreen`).
 - `tauri dev` does not enforce the CSP; only a built app does.
 - Android: use `--split-per-abi` APKs (the universal one is too big for the phone AVD). Debug and release builds have different signatures: uninstall before switching.

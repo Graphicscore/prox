@@ -1,12 +1,14 @@
 name: build
 
-# Builds the latest commit of master for Linux (deb + AppImage) and Android (signed release APKs per ABI).
+# Builds master, pull requests and release tags for Linux (deb + AppImage) and Android (APKs per ABI).
 # Download the files from the run's "Artifacts" section, or from the build-<N> release.
-# Runs on Forgejo Actions (git.asteria.dog); the build number continues the GitHub series: N = run_number + 10.
-# Pull requests run the same tests and builds (Android unsigned: no release key) but never publish.
+# Runs on Forgejo Actions (git.asteria.dog). Only a pushed tag `build-<N>` publishes release build-<N>
+# (app version 0.1.<N>, N above the latest release); master and PR builds are version 0.1.0 and never publish.
+# Pull requests build Android unsigned (no release key).
 on:
   push:
     branches: [master]
+    tags: ['build-*']
   pull_request:
   workflow_dispatch:
 
@@ -20,15 +22,21 @@ env:
   CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
 
 jobs:
-  # Build number N: GitHub stopped at build-10 and Forgejo's run_number restarts at 1, so N = run_number + 10.
-  # The app compares its own version (0.1.<N>) with the latest release tag (build-<N>).
+  # Build number N from the release tag build-<N>; the app compares its own version (0.1.<N>) with the latest
+  # release tag. Untagged builds are N = 0, so an installed master/PR artifact always sees a release as newer.
   meta:
     runs-on: ubuntu-latest
     outputs:
       build_n: ${{ steps.n.outputs.build_n }}
     steps:
       - id: n
-        run: echo "build_n=$(( ${{ github.run_number }} + 10 ))" >> "$GITHUB_OUTPUT"
+        run: |
+          n=0
+          if [ "${{ github.ref_type }}" = tag ]; then
+            n="${GITHUB_REF_NAME#build-}"
+            case "$n" in ''|*[!0-9]*) echo "::error::release tags must be build-<number>, got $GITHUB_REF_NAME"; exit 1;; esac
+          fi
+          echo "build_n=$n" >> "$GITHUB_OUTPUT"
 
   test:
     needs: meta
@@ -141,7 +149,7 @@ jobs:
   # Public release with fixed asset names: the in-app updater downloads from here (mirrored to GitHub).
   release:
     needs: [meta, linux, android]
-    if: success() && github.ref == 'refs/heads/master' # a dispatched run of another branch builds but never publishes
+    if: success() && startsWith(github.ref, 'refs/tags/build-') # only a build-<N> tag publishes
     runs-on: ubuntu-26.04
     env:
       BUILD_N: ${{ needs.meta.outputs.build_n }}
