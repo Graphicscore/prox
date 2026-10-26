@@ -3,6 +3,7 @@ node_modules/
 dist/
 .remember/
 .superpowers/
+.svelte-check/
 
 # android
 src-tauri/gen/android/.gradle/
