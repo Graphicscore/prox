@@ -74,7 +74,7 @@ jobs:
       - run: npm run tauri build -- --config "{\"version\":\"$BUILD_VERSION\"}" --bundles deb,appimage
         env:
           APPIMAGE_EXTRACT_AND_RUN: 1 # linuxdeploy without FUSE on the runner
-      - uses: https://data.forgejo.org/forgejo/upload-artifact@v4
+      - uses: https://data.forgejo.org/forgejo/upload-artifact@v5
         with:
           name: proxer-linux-${{ github.sha }}
           path: |
@@ -140,7 +140,7 @@ jobs:
         run: |
           BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
           for a in src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk; do "$BT/apksigner" verify "$a"; echo "signed: $a"; done # bash -e: an unsigned APK fails the job
-      - uses: https://data.forgejo.org/forgejo/upload-artifact@v4
+      - uses: https://data.forgejo.org/forgejo/upload-artifact@v5
         with:
           name: proxer-android-${{ matrix.abi }}-${{ github.sha }}
           path: src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk
