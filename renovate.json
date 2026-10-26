@@ -2,5 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "description": "svelte-check 4.x peers typescript ^5 || ^6; TypeScript 7 runs as @typescript/native (svelte-check --tsgo). Lift once svelte-check accepts typescript 7.",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<7"
+    }
   ]
 }
