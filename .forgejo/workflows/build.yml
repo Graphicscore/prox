@@ -155,9 +155,9 @@ jobs:
       BUILD_N: ${{ needs.meta.outputs.build_n }}
       BUILD_VERSION: 0.1.${{ needs.meta.outputs.build_n }}
     steps:
-      - uses: https://data.forgejo.org/forgejo/download-artifact@v4
+      - uses: https://data.forgejo.org/forgejo/download-artifact@v7
         with: { name: "proxer-linux-${{ github.sha }}", path: linux }
-      - uses: https://data.forgejo.org/forgejo/download-artifact@v4
+      - uses: https://data.forgejo.org/forgejo/download-artifact@v7
         with: { pattern: "proxer-android-*-${{ github.sha }}", path: android, merge-multiple: true }
       - name: Rename assets
         run: |
