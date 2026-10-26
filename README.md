@@ -37,7 +37,7 @@ Screenshots use the built-in demo data, not a real account.
 
 ## Download
 
-Every push to `master` is built by GitHub Actions and published as a release (`build-<N>`). Latest build:
+Every push to `master` is built by Forgejo Actions and published as a release (`build-<N>`), mirrored to GitHub. Latest build:
 
 | Device | File |
 |---|---|

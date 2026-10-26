@@ -3,7 +3,7 @@ resolver = "2"
 members = ["src-tauri", "crates/proxer-parse", "crates/proxer-client"]
 
 # Release profile for the app (Cargo reads profiles only at the workspace root). CI overrides LTO/codegen-units
-# for speed via CARGO_PROFILE_RELEASE_* (see .github/workflows/build.yml).
+# for speed via CARGO_PROFILE_RELEASE_* (see .forgejo/workflows/build.yml).
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
 codegen-units = 1
