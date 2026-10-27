@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-10-26
-**Commit:** 6853f04
+**Generated:** 2026-10-27
+**Commit:** de21ec2
 **Branch:** master
 
 ## OVERVIEW
@@ -33,18 +33,20 @@ proxer/
 | Why something was built a way | `docs/superpowers/specs/`, `plans/` | |
 
 ## CODE MAP
-| Symbol | Type | Location | Role |
-|--------|------|----------|------|
-| `Client` | struct | crates/proxer-client/src/lib.rs | All proxer.me HTTP; `get` re-logs in once |
-| `is_allowed_embed_url` | fn | crates/proxer-client/src/lib.rs | Host allowlist (mirrored by `safeEmbedUrl` in TS) |
-| `parse_*` | fns | crates/proxer-parse/src/ | Page parsers re-exported from lib.rs |
-| `plan_watched` | fn | crates/proxer-parse/src/mylist.rs | Steps to mark an episode watched |
-| `commands::App` | struct | src-tauri/src/commands.rs | Managed state: `Client` + `CredStore` |
-| `err` | fn | src-tauri/src/commands.rs | Rust error -> UI string code |
-| `api` / `Api` | const/type | src/lib/api.ts | Typed `invoke` wrappers; demo swap in dev |
-| `describeError` | fn | src/lib/api.ts | UI text for error codes |
-| `pushBack` / `handleBack` | fns | src/lib/back.ts | Back stack (Android Back, Esc, mouse back) |
-| `pickNext` / `moveFocus` | fns | src/lib/spatialNav.ts | D-pad spatial navigation |
+Refs = word matches / files across `.rs`, `.ts`, `.svelte`, `.kt` (grep, not LSP).
+
+| Symbol | Type | Location | Refs | Role |
+|--------|------|----------|------|------|
+| `Client` | struct | crates/proxer-client/src/lib.rs | 30/6 | All proxer.me HTTP; `get` re-logs in once |
+| `is_allowed_embed_url` | fn | crates/proxer-client/src/lib.rs | 14/3 | Host allowlist (mirrored by `safeEmbedUrl` in TS) |
+| `parse_*` | fns | crates/proxer-parse/src/ | - | Page parsers re-exported from lib.rs |
+| `plan_watched` | fn | crates/proxer-parse/src/mylist.rs | 13/4 | Steps to mark an episode watched |
+| `commands::App` | struct | src-tauri/src/commands.rs | - | Managed state: `Client` + `CredStore` |
+| `err` | fn | src-tauri/src/commands.rs | 21/2 | Rust error -> UI string code |
+| `api` / `Api` | const/type | src/lib/api.ts | 54/17 | Typed `invoke` wrappers; demo swap in dev |
+| `describeError` | fn | src/lib/api.ts | 18/8 | UI text for error codes |
+| `pushBack` / `handleBack` | fns | src/lib/back.ts | 12/5, 10/3 | Back stack (Android Back, Esc, mouse back) |
+| `pickNext` / `moveFocus` | fns | src/lib/spatialNav.ts | 14/2, 3/2 | D-pad spatial navigation |
 
 ## CONVENTIONS
 - IPC contract = command name + serde field names (snake_case on both sides) + string error codes. Change Rust and TS together.
@@ -52,13 +54,14 @@ proxer/
 - Rust edition 2021; workspace release profile only in root `Cargo.toml` (CI overrides LTO/codegen via `CARGO_PROFILE_RELEASE_*`).
 - App version is `0.1.<N>` stamped by CI from the `build-<N>` tag (`--config {"version":...}`); local and untagged builds are `0.1.0` = build 0.
 - UI copy is English; Proxer data (list states, messages) stays German (`Am Schauen`, `Wird noch geschaut`, ...).
+- Dependency bumps arrive as Renovate PRs (`renovate.json`). `typescript` is held `<7`: svelte-check peers `^5 || ^6`; TS 7 runs only as `@typescript/native` for `svelte-check --tsgo`.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 - NEVER use the official Proxer API or keys extracted from the official app.
 - NEVER put real account data (user id, username, tokens, password) in fixtures, tests, logs or commits; history was scrubbed once.
 - Never push the local tag `pre-scrub-backup`.
 - Agents never type the user's Proxer password; the user logs in in the app/emulator.
-- No server, no telemetry: the app talks to proxer.me (and GitHub releases for updates) only.
+- No server, no telemetry: the app talks to proxer.me (and Forgejo releases on git.asteria.dog for updates) only.
 
 ## COMMANDS
 ```bash
@@ -74,6 +77,8 @@ source scripts/android-env.sh && npm run tauri android build -- --apk --split-pe
 ## NOTES
 - CI runs on Forgejo Actions (git.asteria.dog, `origin`) for master, PRs and tags. Only a pushed tag `build-<N>` publishes release `build-<N>` (app version `0.1.<N>`); master/PR builds are version `0.1.0` and never publish. The in-app updater reads Forgejo releases; they are mirrored to GitHub `Graphicscore/prox` for older installs and README links.
 - Desktop on KDE Wayland + NVIDIA: run with `env WEBKIT_DISABLE_DMABUF_RENDERER=1 npm run tauri dev`; video needs `gst-plugins-good`. WebKit native video fullscreen renders black, so the player uses its own fullscreen (Tauri `setFullscreen`).
+- PR CI gets no secrets: its Android APKs are unsigned. Only master/tag runs sign.
 - `tauri dev` does not enforce the CSP; only a built app does.
 - Android: use `--split-per-abi` APKs (the universal one is too big for the phone AVD). Debug and release builds have different signatures: uninstall before switching.
 - Emulator QA: drive with adb keyevents and read state through WebView DevTools (`adb forward tcp:9222 localabstract:webview_devtools_remote_<pid>`); emulator screenshots can show stale video frames.
+- Real device (e.g. Shield) QA: release builds have no WebView DevTools; use `adb logcat --pid` (decoder size from `SurfaceUtils ... nativeWindow`). A local release APK signed via `gen/android/keystore.properties` installs over a CI build with `adb install -r` (login kept) when built with `--config '{"version":"0.1.<installed N>"}'`.
