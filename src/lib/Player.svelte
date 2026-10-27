@@ -23,6 +23,8 @@
   let video = $state<HTMLVideoElement | null>(null);
   let section = $state<HTMLElement | null>(null), closeBtn = $state<HTMLButtonElement | null>(null);
   let retried = false, focusedVideo = false, alive = true, at = 0, going = false, started = false;
+  let hls: { destroy(): void } | null = null;
+  const isHls = (m: MediaSource) => /mpegurl/i.test(m.mime);
   const embed = $derived(safeEmbedUrl(stream));
   const opener = document.activeElement as HTMLElement | null; // the stream/Watch button: gets focus back on close
 
@@ -42,6 +44,23 @@
     if (stream === shown) return;
     shown = stream;
     untrack(() => { release(); src = null; error = ""; frame = false; retried = false; focusedVideo = false; at = 0; near = false; started = false; resolve(); });
+  });
+  // Airing streams are HLS (the fallback MP4 host is throttled below the file's bitrate). hls.js over MSE works in both
+  // WebViews; it loads only when needed. A fatal error takes the same path as a <video> error (re-resolve once).
+  $effect(() => {
+    const v = video, m = src;
+    if (!v || !m || !isHls(m)) return;
+    let dead = false;
+    import("hls.js/light").then(({ default: Hls }) => {
+      if (dead) return;
+      if (!Hls.isSupported()) { if (v.canPlayType("application/vnd.apple.mpegurl")) v.src = m.url; else error = "This device cannot play HLS streams"; return; }
+      const h = new Hls({ abrEwmaDefaultEstimate: 5_000_000 }); // start near 1080p instead of 360p; ABR steps down if the line is slower
+      h.on(Hls.Events.ERROR, (_e, d) => { if (d.fatal && hls === h) onVideoError(); });
+      h.loadSource(m.url);
+      h.attachMedia(v);
+      hls = h;
+    }, () => { if (!dead) error = "Playback failed"; });
+    return () => { dead = true; };
   });
   function ontime() {
     if (!video) return;
@@ -64,7 +83,7 @@
     else error = "Playback failed";
   }
   // Android WebView: a removed <video> keeps its connection to the stream host and stalls the next one. Free it first.
-  function release() { if (!video) return; video.pause(); video.removeAttribute("src"); video.load(); }
+  function release() { hls?.destroy(); hls = null; if (!video) return; video.pause(); video.removeAttribute("src"); video.load(); }
   // Focus the video once per <video>, and only if the user has not moved focus to another control.
   function focusVideoOnce() {
     if (focusedVideo) return;
@@ -134,9 +153,8 @@
   {#if frame && embed}
     <iframe class="media frame" title="Embedded player" src={embed} allowfullscreen sandbox="allow-scripts allow-same-origin allow-presentation"></iframe>
   {:else if src}
-    <!-- ponytail: src.mime unused, no HLS path; add hls.js only if a probe shows m3u8 sources -->
     <!-- svelte-ignore a11y_media_has_caption -->
-    <video class="media" tabindex={full ? -1 : 0} bind:this={video} src={src.url} controls controlslist="nofullscreen" autoplay playsinline ontimeupdate={ontime} {onended} onerror={onVideoError} onplaying={() => { retried = false; focusVideoOnce(); }} onplay={(e) => { if (e.currentTarget === video) { started = true; paused = false; } }} onpause={(e) => { if (e.currentTarget === video) { started = true; paused = true; } }} oncanplay={() => { if (!started) { started = true; video?.play().catch(() => {}); } }} onloadedmetadata={() => { if (at && video) video.currentTime = at; at = 0; }}></video>
+    <video class="media" tabindex={full ? -1 : 0} bind:this={video} src={isHls(src) ? undefined : src.url} controls controlslist="nofullscreen" autoplay playsinline ontimeupdate={ontime} {onended} onerror={onVideoError} onplaying={() => { retried = false; focusVideoOnce(); }} onplay={(e) => { if (e.currentTarget === video) { started = true; paused = false; } }} onpause={(e) => { if (e.currentTarget === video) { started = true; paused = true; } }} oncanplay={() => { if (!started) { started = true; video?.play().catch(() => {}); } }} onloadedmetadata={() => { if (at && video) video.currentTime = at; at = 0; }}></video>
   {:else if !frame && !error}
     <p role="status">Loading…</p>
   {/if}
