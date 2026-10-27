@@ -10,10 +10,21 @@ fn normal_embed_fixture() {
 }
 
 #[test]
-fn airing_embed_fixture_skeleton() {
+fn airing_embed_prefers_hls_over_fallback_mp4() {
     let html = std::fs::read_to_string("../../fixtures/embed-ps-test.html").unwrap();
     let m = parse_embed(&html).unwrap();
-    assert!(m.url.starts_with("https://") && m.url.contains("/fb/"));
+    assert_eq!(m.url, "https://s5.stream-service.proxer.me/hls/REDACTED/m.m3u8?a=REDACTED&t=1790000000");
+    assert_eq!(m.mime, "application/x-mpegURL");
+    assert_eq!(m.expires_at, Some(1790000000));
+}
+
+#[test]
+fn config_without_hls_falls_back_to_source() {
+    let cfg = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, r#"window.plyr_config = {"playlist":[{"sources":[{"type":"video/mp4","src":"https://x.proxer.me/a.mp4"}]}]};"#);
+    let html = format!(r#"<script src="data:text/javascript;base64,{cfg}"></script><video><source type="video/mp4" src="https://s5.stream-service.proxer.me/fb/abc"></video>"#);
+    let m = parse_embed(&html).unwrap();
+    assert_eq!((m.url.as_str(), m.mime.as_str()), ("https://s5.stream-service.proxer.me/fb/abc", "video/mp4"));
+    assert!(parse_embed(r#"<script src="data:text/javascript;base64,!!"></script>"#).is_err()); // garbage base64: no panic
 }
 
 #[test]

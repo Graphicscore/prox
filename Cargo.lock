@@ -3449,6 +3449,7 @@ dependencies = [
 name = "proxer-parse"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "regex",
  "scraper",
  "serde",
