@@ -10,7 +10,7 @@ Svelte 5 (runes) UI in the system WebView; one codebase for desktop, phone and A
 | Call the Rust side | `lib/api.ts` | `realApi` = one `invoke` per command; types mirror Rust serde structs (snake_case fields) |
 | Error message for a code | `lib/api.ts` `describeError` | Maps Rust string codes (`Parse:*`, `Http:N`, `Captcha`, `Proxer:<msg>`...) |
 | Demo data (no login) | `lib/demo.ts` | `makeDemoApi()` must satisfy `Api`; add every new api method here too |
-| Screens | `lib/{Home,Search,Title,Player,Calendar,Login}.svelte` | Player is the largest (fullscreen, seek, next-episode pop-up, mark watched) |
+| Screens | `lib/{Home,Search,Title,Player,Calendar,Login}.svelte` | Player is the largest (fullscreen, seek, next-episode pop-up, mark watched; HLS via lazy `hls.js/light`) |
 | Reusable widgets | `lib/ui/*.svelte` | Shell (top bar/tabs), PosterRow/Grid, EpisodePicker, Hero, Toasts |
 | Pure logic (tested) | `lib/ui/helpers.ts` | episode/lang selection, paging windows, calendar days, resume episode |
 | D-pad / spatial focus | `lib/spatialNav.ts`, `lib/dpad.ts` | `pickNext` geometry; dpad has seek and fullscreen modes |
@@ -34,7 +34,7 @@ Svelte 5 (runes) UI in the system WebView; one codebase for desktop, phone and A
 - Do not import demo data at top level or outside the DEV check: it would ship in release builds.
 - Do not let D-pad focus open the soft keyboard on TV (it swallows the D-pad).
 - Do not unmount Home/Search/Calendar when opening a title; Back must keep their scroll and focused poster.
-- Do not reuse a `<video>` element without releasing it (`removeAttribute("src")` + `load()`), and call `play()` on `canplay`: Android WebView requires it.
+- Do not reuse a `<video>` element without releasing it (`removeAttribute("src")` + `load()`, and `hls.destroy()` for HLS), and call `play()` on `canplay`: Android WebView requires it.
 - Keyed lists must stay unique by id (appended pages skip ids already shown).
 
 ## UI WORK WITHOUT LOGIN

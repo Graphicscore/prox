@@ -13,7 +13,7 @@ Tauri v2 app crate `proxer-app` (lib `proxer_app_lib`): IPC commands over the cr
 | Self-update | `src/update.rs` | Forgejo `asteria/prox` `releases/latest`, tag `build-<N>`, app version `0.1.<N>` |
 | Android JS bridge | `gen/android/app/src/main/java/me/louven/proxer/MainActivity.kt` | `AndroidTv.isTv/immersive/installUpdate` |
 | Permissions | `capabilities/default.json` | Only `core:default`, app exit, window fullscreen |
-| CSP | `tauri.conf.json` | frames only `*.proxer.me`; media/img any https |
+| CSP | `tauri.conf.json` | frames only `*.proxer.me`; media/img any https; hls.js needs `blob:` media/worker + connect `*.proxer.me` |
 
 ## CONVENTIONS
 - Commands return `Result<T, String>`; the string is a machine code the UI maps in `describeError`. Adding a code means updating both sides.

@@ -10,7 +10,7 @@ crates/
 │   ├── search.rs       # /search and list pages (same tr.entry table)
 │   ├── info.rs, episodes.rs, streams.rs, calendar.rs
 │   ├── mylist.rs       # /ucp list (JSON var ucp_list_items), page token, write replies, plan_watched
-│   ├── embed.rs        # hoster embed page -> MediaSource (url, mime, expires_at)
+│   ├── embed.rs        # hoster embed page -> MediaSource (url, mime, expires_at); airing: HLS from base64 plyr_config
 │   └── session.rs      # login form action, is_logged_in marker
 └── proxer-client/src/lib.rs  # Client: get/post/get_embed/login/logout, with_tls
 ```
@@ -29,6 +29,7 @@ crates/
 - Tests live in `<crate>/tests/*.rs` and read fixtures via `../../fixtures/<name>.html` (path relative to the crate dir; cargo runs tests there).
 - Client tests use `wiremock`; no test may hit proxer.me.
 - Stream kinds: `proxer-stream` = Normal, `ps-test` = Airing (media URL has `t` expiry ~3 h); everything else is `Other`/Unsupported. Both playable kinds are required.
+- Airing embeds list an HLS master (360p-1080p) in `window.plyr_config` (base64 `data:` script); the static `<source>` is a `/fb/` MP4 whose host is throttled below its bitrate. Prefer HLS; `<source>` is only the fallback.
 - Write endpoints need the page token (`token(html)`), obtained by GET of the page first.
 
 ## ANTI-PATTERNS
