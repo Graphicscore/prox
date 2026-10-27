@@ -20,7 +20,7 @@ Tauri v2 app crate `proxer-app` (lib `proxer_app_lib`): IPC commands over the cr
 - User-controlled path pieces are allowlisted, never interpolated raw: `list_path`, `action_kind`, `reminder_title`, `valid_lang`, `url_encode`, lang filtered to ASCII alnum.
 - Platform split by `#[cfg(target_os = "android")]`, with `allow(dead_code)` on the unused side; keep both branches compiling.
 - Unit tests sit in `#[cfg(test)] mod tests` in the same file.
-- `gen/android` is tracked except `gen/schemas`, `.gradle`, `build/`, `local.properties`; `keystore.properties` is written by CI only.
+- `gen/android` is tracked except `gen/schemas`, `.gradle`, `build/`, `local.properties`; `keystore.properties` is gitignored (CI writes it from secrets; a local copy may exist for signed local builds).
 
 ## ANTI-PATTERNS
 - Do not remove `#![cfg_attr(..., windows_subsystem = "windows")]` in `main.rs` (marked DO NOT REMOVE).
