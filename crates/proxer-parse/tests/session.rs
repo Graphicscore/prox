@@ -8,16 +8,33 @@ const CAPTCHA: &str = r#"<html><head><title>Info</title></head><body><a id="mod_
 fn captcha_page_detected_and_still_logged_in() {
     assert!(is_captcha(CAPTCHA));
     assert!(is_logged_in(CAPTCHA)); // why the login check alone let it through
-    assert!(is_captcha(r#"<div id="main"><div class="x g-recaptcha"></div></div>"#));
-    assert!(is_captcha(r#"<html><div class="g-recaptcha"></div></html>"#)); // no #main: whole page
+    assert!(is_captcha(r#"<div id="main"><div id="captcha"></div><div class="x g-recaptcha"></div></div>"#));
+    assert!(is_captcha(r#"<html><form id="captcha"><div class="g-recaptcha"></div></form></html>"#)); // no #main: whole page
+}
+
+#[test]
+fn one_marker_alone_is_not_captcha() {
+    // both markers present, but the widget sits outside #main
+    assert!(!is_captcha(r#"<html><body>captcha<div id="main"><div id="captcha"></div></div><div class="g-recaptcha"></div></body></html>"#));
+    // /info/77017 (2026-11): a normal title page the owner sees without any check, but with an invisible widget in #main
+    let invisible = r#"<html><head><title>Info</title></head><body><a id="mod_logout_submit">out</a><div id="main"><h1>Titel</h1>
+<form id="comment"><div class="g-recaptcha" data-sitekey="x" data-size="invisible"></div></form></div></body></html>"#;
+    assert!(!is_captcha(invisible));
+    // a bare id="captcha" could collide with any other element (a label, a help anchor), so the widget is required too
+    assert!(!is_captcha(r#"<div id="main"><form id="captcha"><input name="x"></form></div>"#));
 }
 
 #[test]
 fn normal_pages_are_not_captcha() {
-    for f in ["info-45", "home-anon", "watch-45-1", "ucp-anime", "list-airing", "search-naruto", "calendar"] {
-        let html = std::fs::read_to_string(format!("../../fixtures/{f}.html")).unwrap();
-        assert!(!is_captcha(&html), "{f}");
+    let mut n = 0;
+    for e in std::fs::read_dir("../../fixtures").unwrap() {
+        let p = e.unwrap().path();
+        if p.extension().is_some_and(|x| x == "html") {
+            assert!(!is_captcha(&std::fs::read_to_string(&p).unwrap()), "{}", p.display());
+            n += 1;
+        }
     }
+    assert!(n >= 10, "{n}"); // every vendored fixture (10 at 8c18a5e)
     // the word alone, or a marker outside #main, is not the check page
     assert!(!is_captcha(r#"<div id="main">Captcha im Titel</div>"#));
     assert!(!is_captcha(r#"<div id="login"><div class="g-recaptcha"></div></div><div id="main">ok</div>"#));
