@@ -15,6 +15,7 @@ fn err(e: Error) -> String {
         Error::BadCredentials => "BadCredentials".into(),
         Error::Parse(p) => format!("Parse:{p}"),
         Error::Http(n) => format!("Http:{n}"),
+        Error::Captcha => "Captcha".into(),
         Error::Network(_) => "Network".into(),
     }
 }
@@ -238,6 +239,7 @@ mod tests {
         assert_eq!(err(Error::BadCredentials), "BadCredentials");
         assert_eq!(err(Error::Parse("x")), "Parse:x");
         assert_eq!(err(Error::Http(503)), "Http:503");
+        assert_eq!(err(Error::Captcha), "Captcha");
         let n = reqwest::Client::new().get("http://").build().unwrap_err();
         assert_eq!(err(Error::Network(n)), "Network");
     }

@@ -10,7 +10,7 @@ pub use mylist::{action_result, parse_my_list, plan_watched, token, ListEntry, L
 pub use episodes::{parse_episode_list, parse_episode_pages, parse_episodes, Episode, EpisodeList, PageLink};
 pub use info::{parse_info, Info};
 pub use search::{parse_search, parse_search_page, SearchHit, SearchPage};
-pub use session::{is_logged_in, login_action};
+pub use session::{is_captcha, is_logged_in, login_action};
 pub use streams::{parse_streams, ParseError, Stream, StreamKind};
 pub use embed::{parse_embed, EmbedError, MediaSource};
 pub use calendar::{parse_calendar, CalendarEntry};

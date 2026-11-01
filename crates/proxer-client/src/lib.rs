@@ -12,6 +12,8 @@ pub enum Error {
     Parse(&'static str),
     #[error("http status {0}")]
     Http(u16),
+    #[error("captcha check")]
+    Captcha,
     #[error("network: {0}")]
     Network(#[from] reqwest::Error),
 }
@@ -92,14 +94,14 @@ impl Client {
         let http = self.http();
         let home = http.get(&self.base).send().await?;
         check_status(home.status())?;
-        let action = proxer_parse::login_action(&home.text().await?).ok_or(Error::Parse("login form"))?;
+        let action = proxer_parse::login_action(&no_captcha(home.text().await?)?).ok_or(Error::Parse("login form"))?;
         let res = http
             .post(format!("{}{}", self.base, action))
             .form(&[("username", user), ("password", pass), ("secretkey", ""), ("remember", "1"), ("submit", "Login")])
             .send()
             .await?;
         check_status(res.status())?;
-        let res = res.text().await?;
+        let res = no_captcha(res.text().await?)?;
         if proxer_parse::is_logged_in(&res) {
             self.set_credentials(user, pass).await;
             Ok(())
@@ -114,7 +116,7 @@ impl Client {
         let _p = self.gate.acquire().await.expect("semaphore");
         let res = self.http().get(format!("{}{}", self.base, path)).send().await?;
         check_status(res.status())?; // before the logged-in check: 5xx pages are not a lost session
-        Ok(res.text().await?)
+        no_captcha(res.text().await?) // also before it: the captcha page keeps the logout marker and is never data
     }
 
     /// GET an embed page anonymously. Only `https://*.proxer.me` is allowed and redirects are not followed.
@@ -164,6 +166,10 @@ impl Client {
         let body = self.fetch(path).await?;
         if proxer_parse::is_logged_in(&body) { Ok(body) } else { Err(Error::NotLoggedIn) }
     }
+}
+
+fn no_captcha(body: String) -> Result<String, Error> {
+    if proxer_parse::is_captcha(&body) { Err(Error::Captcha) } else { Ok(body) }
 }
 
 fn check_status(s: reqwest::StatusCode) -> Result<(), Error> {

@@ -4,6 +4,42 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const LOGIN_PAGE: &str = r#"<form method="post" action="/login?abc123=1"><input name="username"><input name="password"></form>"#;
 const IN: &str = r#"<a id="mod_logout_submit">out</a>"#;
+// Synthetic "Captcha Eingabe" page (2026-11): title "Info", logout marker kept, reCAPTCHA in #main.
+const CAPTCHA: &str = r#"<html><head><title>Info</title></head><body><a id="mod_logout_submit">out</a>
+<div id="main"><h3>Captcha Eingabe</h3><form id="captcha"><div class="g-recaptcha" data-sitekey="x"></div></form></div></body></html>"#;
+
+#[tokio::test]
+async fn captcha_info_and_list_reads_are_captcha_errors_without_relogin() {
+    for (p, body) in [("/info/1", CAPTCHA.to_string()), ("/info/1/list/1", CAPTCHA.to_string()), ("/info/1", CAPTCHA.replace("mod_logout_submit", "x"))] {
+        let s = MockServer::start().await;
+        Mock::given(method("GET")).and(path(p)).respond_with(ResponseTemplate::new(200).set_body_string(body)).expect(1).mount(&s).await;
+        Mock::given(method("POST")).respond_with(ResponseTemplate::new(200).set_body_string(IN)).expect(0).mount(&s).await;
+        let c = Client::new(&s.uri());
+        c.set_credentials("u", "p").await;
+        assert!(matches!(c.get(p).await, Err(Error::Captcha)), "{p}");
+    }
+}
+
+#[tokio::test]
+async fn normal_info_page_is_unchanged() {
+    let html = std::fs::read_to_string("../../fixtures/info-45.html").unwrap();
+    let s = MockServer::start().await;
+    Mock::given(method("GET")).and(path("/info/45")).respond_with(ResponseTemplate::new(200).set_body_string(html.clone())).expect(1).mount(&s).await;
+    let c = Client::new(&s.uri());
+    let got = c.get("/info/45").await.unwrap();
+    assert_eq!(got, html);
+    assert_eq!(proxer_parse::parse_info(&got), proxer_parse::parse_info(&html));
+    assert!(!proxer_parse::parse_info(&got).title.is_empty());
+}
+
+#[tokio::test]
+async fn captcha_after_login_is_captcha_error() {
+    let s = MockServer::start().await;
+    Mock::given(method("GET")).and(path("/")).respond_with(ResponseTemplate::new(200).set_body_string(LOGIN_PAGE)).mount(&s).await;
+    Mock::given(method("POST")).and(path_regex("^/login")).respond_with(ResponseTemplate::new(200).set_body_string(CAPTCHA)).expect(1).mount(&s).await;
+    let c = Client::new(&s.uri());
+    assert!(matches!(c.login("u", "p").await, Err(Error::Captcha)));
+}
 
 #[tokio::test]
 async fn login_ok_and_bad() {
